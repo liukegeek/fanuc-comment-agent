@@ -1,0 +1,147 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <groupId>com.byd.coment</groupId>
+    <artifactId>FanucHelper</artifactId>
+    <version>0.01</version>
+
+    <properties>
+        <maven.compiler.source>23</maven.compiler.source>
+        <maven.compiler.target>23</maven.compiler.target>
+        <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+    </properties>
+
+    <dependencies>
+
+        <!-- https://mvnrepository.com/artifact/org.jsoup/jsoup -->
+        <dependency>
+            <groupId>org.jsoup</groupId>
+            <artifactId>jsoup</artifactId>
+            <version>1.15.3</version>
+        </dependency>
+
+        <dependency>
+            <groupId>junit</groupId>
+            <artifactId>junit</artifactId>
+            <version>4.13.2</version>
+            <scope>test</scope>
+        </dependency>
+
+        <dependency>
+            <groupId>com.google.code.gson</groupId>
+            <artifactId>gson</artifactId>
+            <version>2.10.1</version>
+        </dependency>
+
+        <!--javafx配置-->
+        <dependency>
+            <groupId>org.openjfx</groupId>
+            <artifactId>javafx-controls</artifactId>
+            <version>23.0.1</version>
+        </dependency>
+
+<!--        <dependency>-->
+<!--            <groupId>org.openjfx</groupId>-->
+<!--            <artifactId>javafx-fxml</artifactId>-->
+<!--            <version>23.0.1</version>-->
+<!--        </dependency>-->
+
+
+        <!-- Log4j2 核心功能 -->
+        <dependency>
+            <groupId>org.apache.logging.log4j</groupId>
+            <artifactId>log4j-core</artifactId>
+            <version>2.20.0</version>
+        </dependency>
+        <!-- Log4j2 API -->
+        <dependency>
+            <groupId>org.apache.logging.log4j</groupId>
+            <artifactId>log4j-api</artifactId>
+            <version>2.20.0</version>
+        </dependency>
+    </dependencies>
+
+
+    <build>
+        <plugins>
+            <!-- JavaFX Maven插件，用于运行JavaFX应用 -->
+            <plugin>
+                <groupId>org.openjfx</groupId>
+                <artifactId>javafx-maven-plugin</artifactId>
+                <version>0.0.8</version>  <!-- 插件版本，可查 Maven 中最新版本 -->
+                <configuration>
+                    <!--<mainClass>com.byd.view.com.byd.toolsanucEditor</mainClass>-->
+                    <mainClass>com.byd.tools.Main</mainClass>
+                    <jlinkImageName>FanucHelperRuntime</jlinkImageName>         <!-- 输出目录名 -->
+                    <stripDebug>true</stripDebug>                         <!-- 去除调试信息 -->
+                    <noManPages>true</noManPages>
+                    <noHeaderFiles>true</noHeaderFiles>
+                    <compress>2</compress>                                <!-- 压缩级别（最大2） -->
+                    <jmodsPath>/opt/homebrew/Cellar/javafx/javafx-jmods-21.0.7</jmodsPath>
+                </configuration>
+            </plugin>
+
+
+            <!--所有阶段都自动跳过测试-->
+            <!--执行package时自动执行了所有JUnit测试。若部署时没有测试环境，可使用该插件跳过测试，避免报错影响部署-->
+            <!--永久在 pom.xml 中配置跳过测试（不推荐全局关闭）-->
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-surefire-plugin</artifactId>
+                <version>3.2.5</version>
+                <configuration>
+                    <skipTests>true</skipTests>
+                </configuration>
+            </plugin>
+
+
+            <!--设置主类的插件-->
+            <!--
+            使得生成的jar包可以通过命令行运行
+            1.注意在下面   <configuration>-<archive>-<manifest>-<mainClass>  中添加上该项目的主类
+            2.该插件自动在 META-INF/MANIFEST.MF 中写入 Main-Class，让这个 jar 可通过命令行运行：
+            3.如果没有设置 Main-Class，生成的 jar 不能双击运行或 java -jar 启动。
+            -->
+
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-jar-plugin</artifactId>
+                <version>3.4.1</version>
+                <configuration>
+                    <archive>
+                        <manifest>
+                            <!--填写项目的主类全路径名-->
+                            <mainClass>com.byd.tools.Main</mainClass>
+                        </manifest>
+                    </archive>
+                </configuration>
+            </plugin>
+
+            <!-- 打包为 fat jar -->
+            <!--
+            作用：
+                •	将项目所有依赖都打包进一个“胖 jar”（fat jar）中；
+                •	解决 “NoClassDefFoundError” 的问题，不再依赖外部 lib。
+                你可以带着这个 fat jar 到任意一台安装了 JRE 的机器上运行，不用再手动导入依赖。
+            -->
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-shade-plugin</artifactId>
+                <version>3.2.4</version>
+                <executions>
+                    <execution>
+                        <phase>package</phase>
+                        <goals>
+                            <goal>shade</goal>
+                        </goals>
+                    </execution>
+                </executions>
+            </plugin>
+        </plugins>
+    </build>
+
+
+</project>
