@@ -1,12 +1,11 @@
 package com.byd.tools.data;
 
 import com.byd.tools.exceptions.JsonFileIOException;
-import com.byd.tools.pojo.DigitalComment;
+import com.byd.tools.pojo.Comment;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.reflect.TypeToken;
 
-import java.io.FileNotFoundException;
 import java.io.FileReader;
 import java.io.FileWriter;
 import java.io.IOException;
@@ -23,7 +22,7 @@ import java.util.List;
  * Version 1.0
  */
 public class JsonFileOperator {
-    public void saveToJson(List<DigitalComment> commentList, String savePath) {
+    public void saveToJson(List<Comment> commentList, String savePath) {
         // 如果直接如下生成gson对象，那么生成的String就是默认压缩格式，即所有json对象挤在一行，无空格与换行符。无阅读体验，舍弃。
         // Gson gson = new Gson();
 
@@ -55,10 +54,10 @@ public class JsonFileOperator {
         }
     }
 
-    public List<DigitalComment> loadFromJson(String readPath){
-        List<DigitalComment> commentList;
+    public List<Comment> loadFromJson(String readPath){
+        List<Comment> commentList;
         Gson gson = new Gson();
-        Type type = new TypeToken<List<DigitalComment>>() {
+        Type type = new TypeToken<List<Comment>>() {
         }.getType();
 
         try (

@@ -12,6 +12,7 @@ import java.net.URLEncoder;
  * Version 1.0
  */
 public class CommentURLPara {
+
     private String comment;
     private String index;
     private String commentTypeCode;

@@ -11,7 +11,6 @@ package com.byd.tools.connect;
 
 import com.byd.tools.exceptions.CreateConnectFailed;
 import com.byd.tools.exceptions.RequestFailed;
-import com.byd.tools.service.comment.TestConnectionState;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 

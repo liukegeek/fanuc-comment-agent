@@ -2,15 +2,14 @@ package com.byd.tools.service.comment;
 
 import com.byd.tools.connect.ConnectServer;
 import com.byd.tools.data.JsonFileOperator;
+import com.byd.tools.pojo.Comment;
 import com.byd.tools.pojo.CommentType;
-import com.byd.tools.pojo.DigitalComment;
 import com.byd.tools.data.ParseHtml;
 import com.byd.tools.pojo.ServiceResponseInfo;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
 import java.io.InputStream;
-import java.util.Arrays;
 import java.util.List;
 
 /**
@@ -43,30 +42,30 @@ public class DownloadComment {
             //解析资源，并据此构建 长文本的对象
             ParseHtml parseHtml = new ParseHtml(inputStream, connectServer.getBaseUrl());
             logger.info("成功创建ParseHtml对象，即将调用getDigitalComments进行资源解析");
-            List<DigitalComment> digitalComments = parseHtml.getDigitalComments();
+            List<Comment> comments = parseHtml.getDigitalComments();
             logger.info("成功解析资源，并构建长文本对象");
 
 
             JsonFileOperator jsonFileOperator = new JsonFileOperator();
             //保存所有信号的长文本为Json文件。
-            jsonFileOperator.saveToJson(digitalComments, path);
+            jsonFileOperator.saveToJson(comments, path);
             logger.info("成功将所有信号的长文本保存为Json文件。路径名为:" + path);
 
 
             //额外生成一份只有Input信号长文本的 json文件。 路径名为给定的 路径名后拼接"_input"
-            List<DigitalComment> inputDigitalComments = digitalComments.stream().filter(
+            List<Comment> inputComments = comments.stream().filter(
                     digitalComment -> digitalComment.getType() == CommentType.DI
             ).toList();
             String inputCommentSavePath = path.substring(0, path.lastIndexOf(".")) + "_input.json";
-            jsonFileOperator.saveToJson(inputDigitalComments, inputCommentSavePath);
+            jsonFileOperator.saveToJson(inputComments, inputCommentSavePath);
             logger.info("成功将输入信号的长文本另保存为Json文件。路径名为:" + inputCommentSavePath);
 
             //额外生成一份自由Output信号长文本的 json文件。 路径名为给定的 路径名后拼接"_output"
-            List<DigitalComment> outputDigitalComments = digitalComments.stream().filter(
+            List<Comment> outputComments = comments.stream().filter(
                     digitalComment -> digitalComment.getType() == CommentType.DO
             ).toList();
             String outputCommentSavePath = path.substring(0, path.lastIndexOf(".")) + "_output.json";
-            jsonFileOperator.saveToJson(outputDigitalComments, outputCommentSavePath);
+            jsonFileOperator.saveToJson(outputComments, outputCommentSavePath);
             logger.info("成功将输出信号的长文本另保存为Json文件。路径名为:" + outputCommentSavePath);
             return new ServiceResponseInfo("DownloadComment", "成功将长文本保存为JSON文件，路径为：" + path);
         } catch (Exception e) {

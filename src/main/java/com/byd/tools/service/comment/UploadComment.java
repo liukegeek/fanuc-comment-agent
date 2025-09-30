@@ -13,8 +13,8 @@ import com.byd.tools.connect.ConnectServer;
 import com.byd.tools.data.DataToURL;
 import com.byd.tools.data.JsonFileOperator;
 import com.byd.tools.exceptions.RequestFailed;
+import com.byd.tools.pojo.Comment;
 import com.byd.tools.pojo.CommentURLPara;
-import com.byd.tools.pojo.DigitalComment;
 import com.byd.tools.pojo.ServiceResponseInfo;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -41,7 +41,7 @@ public class UploadComment {
         DataToURL dataToURL = new DataToURL();
 
         try {
-            List<DigitalComment> commentList = jsonFileOperator.loadFromJson(path);
+            List<Comment> commentList = jsonFileOperator.loadFromJson(path);
 
             List<CommentURLPara> commentURLParaList = dataToURL.transferToPara(commentList);
 

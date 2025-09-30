@@ -1,10 +1,8 @@
-package com.byd.tools.data;
+package com.byd.tools.parse;
 
 import com.byd.tools.exceptions.ParseHtmlFailed;
 import com.byd.tools.pojo.Comment;
 import com.byd.tools.pojo.CommentType;
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
 import org.jsoup.Jsoup;
 import org.jsoup.nodes.Document;
 import org.jsoup.nodes.Element;
@@ -12,46 +10,28 @@ import org.jsoup.select.Elements;
 
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.UnsupportedEncodingException;
+import java.net.URLEncoder;
 import java.util.ArrayList;
 import java.util.List;
 
-
 /**
- * ClassName: parseComBlankHtml
- * Package: com.byd.parseData
+ * ClassName: UrlParaParser
+ * Package: com.byd.tools.data
  * Description:
+ * 针对用于连接机器人的url连接的参数部分的解析。比如获取「读操作」时候的url参数、获取「写操作」时候的url参数。
  * Author: LiuKe
- * Create: 2025/4/7 21:54
+ * Create: 2025/8/9 18:37
  * Version 1.0
  */
-public class ParseHtml {
+public class UrlParaParser {
 
-    InputStream htmlInputStream;  //要解析的 输入流对象
-    String charset;   // 解析时使用的解码方式
-    String htmlBaseUri; //目标资源的路径。
-    private static final Logger logger = LogManager.getLogger(ParseHtml.class);
-
-    public ParseHtml(InputStream htmlInputStream, String htmlBaseUri) {
-        this(htmlInputStream, htmlBaseUri, "GBK");
-    }
-
-    public ParseHtml(InputStream htmlInputStream, String htmlBaseUri, String charset) {
-        this.htmlInputStream = htmlInputStream;
-        this.charset = charset;
-        this.htmlBaseUri = htmlBaseUri;
-    }
-
-    /**
-     * 从html文件中 解析出所有的 数字量长文本
-     *
-     * @return 存储着 数字量长文本对象 的列表
-     */
-    public List<Comment> getDigitalComments() {
-        logger.info("进入ParseHtml对象的getDigitalComments程序");
+    public static List<Comment> getCommentsFromHtml(InputStream sourceInputStream, String charset, String sourceUrl) throws IOException {
+//        logger.info("进入ParseHtml对象的getDigitalComments程序");
         List<Comment> commentList = new ArrayList<>();
 
         try {
-            Document document = Jsoup.parse(htmlInputStream, charset, htmlBaseUri);
+            Document document = Jsoup.parse(sourceInputStream, charset, sourceUrl);
             Element root = document.root();
             Elements html = root.select("> html");
             Element body = html.select("> body").first();
@@ -69,14 +49,14 @@ public class ParseHtml {
                 colName.append(td.text()).append("\t\t");
             });
 
-            logger.info("已执行parseHtml程序对输入流进行解析，当前读取以下列的信息");
-            logger.info(colName);
+//            logger.info("已执行parseHtml程序对输入流进行解析，当前读取以下列的信息");
+//            logger.info(colName);
             //            System.out.println("当前读取以下列的信息:");
 //            System.out.println(colName);
 
 
             //对剩下的每一行都进行拆解，并构造Comment对象用来保存，通过清洗所整理出来的长文本信息。
-            logger.info("对剩下的每一行都进行拆解，并构造Comment对象用来保存，通过清洗所整理出来的长文本信息。");
+//            logger.info("对剩下的每一行都进行拆解，并构造Comment对象用来保存，通过清洗所整理出来的长文本信息。");
             trs.forEach(
                     tr -> {
 
@@ -87,7 +67,7 @@ public class ParseHtml {
                         diComment.setType(CommentType.DI); //设置长文本类型为， DI类型
 //                        diComment.setComment("");  //用于制造 空的长文本
                         commentList.add(diComment);//将该行所提取出来的输入长文本加入到长文本列表:commentList当中
-                        logger.info("构建一个diComment,id:" + diComment.getId());
+//                        logger.info("构建一个diComment,id:" + diComment.getId());
 
 
                         String doCommentName = tr.select("td").get(3).select("input").first().attr("name");
@@ -98,13 +78,54 @@ public class ParseHtml {
                         doComment.setType(CommentType.DO); //设置长文本类型为，DO类型
 //                        doComment.setComment("");  //用于制造空的长文本
                         commentList.add(doComment);
-                        logger.info("构建一个doComment,id:" + doComment.getId());
+//                        logger.info("构建一个doComment,id:" + doComment.getId());
                     }
             );
         } catch (IOException | NullPointerException e) {
-            logger.error("执行ParseHtml遇到错误：" + e.getMessage());
-            throw new ParseHtmlFailed("未能成功解析所提供html文件:" + htmlBaseUri + "具体原因为：" + e);
+//            logger.error("执行ParseHtml遇到错误：" + e.getMessage());
+            throw new ParseHtmlFailed("未能成功解析所提供html文件:" + sourceUrl + "具体原因为：" + e);
+        } finally {
+            sourceInputStream.close();
         }
         return commentList;
+
+
     }
+
+
+    /**
+     * 用于在合成 读取连接，时提供url连接的参数部分
+     *
+     * @param type 将要请求的数据类型，比如DI、DO等
+     * @return 将请求类型翻译为对应的参数字符串。
+     */
+    public static String formatReadUrlPara(CommentType type) {
+        return switch (type) {
+            case DI,DO -> "?sfc=33";
+        };
+    }
+
+    /**
+     *
+     */
+    public static String formatWriteUrlPara(CommentType type, int id, String comment, String charset) {
+        if (type == null) {
+            System.out.println("未明确要提交的数据的类型");
+        }
+        String commentTypeCode = switch (type) {
+            case DI -> "8";
+            case DO -> "9";
+        };
+
+        try {
+            String sComment = URLEncoder.encode(comment, charset);
+            String sIndx = URLEncoder.encode(String.valueOf(id), charset);
+            String sFc = URLEncoder.encode(commentTypeCode, charset);
+            return "?sComment=" + sComment + "&sIndx=" + sIndx + "&sFc=" + sFc;
+        } catch (UnsupportedEncodingException e) {
+            throw new RuntimeException(e);
+        }
+
+    }
+
 }

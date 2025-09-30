@@ -2,8 +2,8 @@ import com.byd.tools.connect.ConnectServer;
 import com.byd.tools.data.DataToURL;
 import com.byd.tools.data.JsonFileOperator;
 import com.byd.tools.data.ParseHtml;
+import com.byd.tools.pojo.Comment;
 import com.byd.tools.pojo.CommentURLPara;
-import com.byd.tools.pojo.DigitalComment;
 import com.byd.tools.service.comment.DownloadComment;
 import org.jsoup.Jsoup;
 import org.jsoup.nodes.Document;
@@ -44,7 +44,7 @@ public class ServerTest {
     public void testParse() {
         InputStream resourceAsStream = ClassLoader.getSystemClassLoader().getResourceAsStream("ComBlank.html");
         ParseHtml parseHtml = new ParseHtml(resourceAsStream, "", "GBK");
-        List<DigitalComment> comments = parseHtml.getDigitalComments();
+        List<Comment> comments = parseHtml.getDigitalComments();
         comments.forEach(System.out::println);
     }
 
@@ -74,18 +74,18 @@ public class ServerTest {
     @Test
     public void testLoadJson(){
         JsonFileOperator jsonFileOperator = new JsonFileOperator();
-        List<DigitalComment> commentList = jsonFileOperator.loadFromJson("/Users/liuke/IdeaProjects/FanucHelper/src/main/java/com/byd/tools/CommentTest_input.json");
+        List<Comment> commentList = jsonFileOperator.loadFromJson("/Users/liuke/IdeaProjects/FanucHelper/src/main/java/com/byd/tools/CommentTest_input.json");
         commentList.forEach(System.out::println);
     }
 
     /**
-     * 测试能否成功将 长文本对象:DigitalComment  转换成 能够作为url参数发送的: CommentURLPara 对象。
+     * 测试能否成功将 长文本对象:Comment  转换成 能够作为url参数发送的: CommentURLPara 对象。
      */
     @Test
     public void testDataToUrl(){
         JsonFileOperator jsonFileOperator = new JsonFileOperator();
         DataToURL dataToURL = new DataToURL();
-        List<DigitalComment> commentList = jsonFileOperator.loadFromJson("/Users/liuke/IdeaProjects/FanucHelper/src/main/java/com/byd/tools/CommentTest_input.json");
+        List<Comment> commentList = jsonFileOperator.loadFromJson("/Users/liuke/IdeaProjects/FanucHelper/src/main/java/com/byd/tools/CommentTest_input.json");
         List<CommentURLPara> commentURLParaList = dataToURL.transferToPara(commentList);
         commentURLParaList.forEach(System.out::println);
     }
@@ -108,7 +108,7 @@ public class ServerTest {
 
         JsonFileOperator jsonFileOperator = new JsonFileOperator();
         DataToURL dataToURL = new DataToURL();
-        List<DigitalComment> commentList = jsonFileOperator.loadFromJson("/Users/liuke/Documents/fanuc测试/Untitled.json");
+        List<Comment> commentList = jsonFileOperator.loadFromJson("/Users/liuke/Documents/fanuc测试/Untitled.json");
         List<CommentURLPara> commentURLParaList = dataToURL.transferToPara(commentList);
 
         commentURLParaList.forEach(

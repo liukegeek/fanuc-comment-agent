@@ -2,7 +2,7 @@ package com.byd.tools.data;
 
 import com.byd.tools.pojo.CommentType;
 import com.byd.tools.pojo.CommentURLPara;
-import com.byd.tools.pojo.DigitalComment;
+import com.byd.tools.pojo.Comment;
 import com.google.gson.Gson;
 import com.google.gson.reflect.TypeToken;
 
@@ -30,7 +30,7 @@ public class DataToURL {
      * @param digitalComment 依赖的长文本对象
      * @return 专注于提交时URL应包含的参数的长文本对象。
      */
-    public CommentURLPara transferToPara(DigitalComment digitalComment) {
+    public CommentURLPara transferToPara(Comment digitalComment) {
         int id = digitalComment.getId();
         String index = String.valueOf(id);
         String comment = digitalComment.getComment();
@@ -40,11 +40,11 @@ public class DataToURL {
 
     /**
      * 将一个系列DigitalComment对象，转换成一系列DigitalComment
-     * @param digitalCommentList 依赖的长文本对象列表
+     * @param commentList 依赖的长文本对象列表
      * @return 专注于提交时URL应包含的参数的长文本对象列表。
      */
-    public List<CommentURLPara> transferToPara(List<DigitalComment> digitalCommentList) {
-        return digitalCommentList.stream().map(this::transferToPara).toList();
+    public List<CommentURLPara> transferToPara(List<Comment> commentList) {
+        return commentList.stream().map(this::transferToPara).toList();
 
     }
 
