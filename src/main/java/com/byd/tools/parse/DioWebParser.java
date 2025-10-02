@@ -10,13 +10,11 @@ import org.jsoup.select.Elements;
 
 import java.io.IOException;
 import java.io.InputStream;
-import java.io.UnsupportedEncodingException;
-import java.net.URLEncoder;
 import java.util.ArrayList;
 import java.util.List;
 
 /**
- * ClassName: UrlParaParser
+ * ClassName: DioWebParser
  * Package: com.byd.tools.data
  * Description:
  * 针对用于连接机器人的url连接的参数部分的解析。比如获取「读操作」时候的url参数、获取「写操作」时候的url参数。
@@ -24,9 +22,9 @@ import java.util.List;
  * Create: 2025/8/9 18:37
  * Version 1.0
  */
-public class UrlParaParser {
+public class DioWebParser extends BaseWebParser {
 
-    public static List<Comment> getCommentsFromHtml(InputStream sourceInputStream, String charset, String sourceUrl) throws IOException {
+    public  List<Comment> parseDataFromHtml(InputStream sourceInputStream, String charset, String sourceUrl) throws IOException {
 //        logger.info("进入ParseHtml对象的getDigitalComments程序");
         List<Comment> commentList = new ArrayList<>();
 
@@ -89,43 +87,7 @@ public class UrlParaParser {
         }
         return commentList;
 
-
     }
 
-
-    /**
-     * 用于在合成 读取连接，时提供url连接的参数部分
-     *
-     * @param type 将要请求的数据类型，比如DI、DO等
-     * @return 将请求类型翻译为对应的参数字符串。
-     */
-    public static String formatReadUrlPara(CommentType type) {
-        return switch (type) {
-            case DI,DO -> "?sfc=33";
-        };
-    }
-
-    /**
-     *
-     */
-    public static String formatWriteUrlPara(CommentType type, int id, String comment, String charset) {
-        if (type == null) {
-            System.out.println("未明确要提交的数据的类型");
-        }
-        String commentTypeCode = switch (type) {
-            case DI -> "8";
-            case DO -> "9";
-        };
-
-        try {
-            String sComment = URLEncoder.encode(comment, charset);
-            String sIndx = URLEncoder.encode(String.valueOf(id), charset);
-            String sFc = URLEncoder.encode(commentTypeCode, charset);
-            return "?sComment=" + sComment + "&sIndx=" + sIndx + "&sFc=" + sFc;
-        } catch (UnsupportedEncodingException e) {
-            throw new RuntimeException(e);
-        }
-
-    }
 
 }

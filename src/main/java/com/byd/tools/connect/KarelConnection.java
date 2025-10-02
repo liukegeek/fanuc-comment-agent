@@ -3,7 +3,9 @@ package com.byd.tools.connect;
 import com.byd.tools.exceptions.CreateConnectFailed;
 import com.byd.tools.exceptions.InvalidConnectionPara;
 import com.byd.tools.exceptions.RequestFailed;
-import com.byd.tools.parse.UrlParaParser;
+
+import com.byd.tools.parse.KarelWebParser;
+import com.byd.tools.parse.WebParserFactory;
 import com.byd.tools.pojo.Comment;
 import com.byd.tools.pojo.CommentType;
 
@@ -42,7 +44,8 @@ public class KarelConnection implements IConnection {
      */
     @Override
     public Comment readComment(int id, CommentType commentType) {
-        String readUrlPara = UrlParaParser.formatReadUrlPara(commentType);
+        KarelWebParser webParser = WebParserFactory.of(commentType);
+        String readUrlPara = webParser.generateReadPara(commentType);
         String readUrl = baseUrl + readPath + readUrlPara;
 
         try {
@@ -58,7 +61,7 @@ public class KarelConnection implements IConnection {
 
                 HttpURLConnection httpURLConnection = createConnection(readUrl);
                 try (InputStream karelInputStream = httpURLConnection.getInputStream()) {
-                    List<Comment> commentList = UrlParaParser.getCommentsFromHtml(karelInputStream, "GBK", readUrl);
+                    List<Comment> commentList = webParser.parseDataFromHtml(karelInputStream, "GBK", readUrl);
                     //未查找到该类型的长文本，异常情况。
                     if (commentList.isEmpty()) {
                         System.out.println("未能获取到任何长文本信息");
@@ -72,7 +75,6 @@ public class KarelConnection implements IConnection {
                     });
                 }
             }
-
             //先根据类型，从缓存中找到所有该type的Map集合，然后根据id直接返回对应的comment对象。
             return temp.get(commentType).get(id);
         } catch (IOException e) {
@@ -85,7 +87,7 @@ public class KarelConnection implements IConnection {
      * 读取该类型所有的Comment对象
      *
      * @param commentType 要读取的comment类型
-     * @return 所要求的的所有comment列表
+     * @return 所请求的的所有comment列表
      */
     public List<Comment> readAllComments(CommentType commentType) {
         List<Comment> allCommentList = new ArrayList<>();
@@ -94,8 +96,8 @@ public class KarelConnection implements IConnection {
         readComment(1, commentType);
 
         for (int i = 0; i < temp.get(commentType).size(); i++) {
-            //将hashmap转换成有序的list列表。
-            allCommentList.add(temp.get(commentType).get(i+1));
+            //将hashmap转换成有序的list列表。由于IO注释通常从1开始，而不是0，因此这里是i+1
+            allCommentList.add(temp.get(commentType).get(i + 1));
         }
         return allCommentList;
     }
@@ -109,7 +111,9 @@ public class KarelConnection implements IConnection {
      */
     @Override
     public boolean writeComment(Comment comment) {
-        String urlPara = UrlParaParser.formatWriteUrlPara(comment.getType(), comment.getId(), comment.getComment(), "GBK");
+        KarelWebParser webParser = WebParserFactory.of(comment.getType());
+
+        String urlPara = webParser.generateWritePara(comment.getType(), comment.getId(), comment.getComment(), "GBK");
         String writeUrl = baseUrl + writePath + urlPara;
 
         try {
@@ -124,7 +128,7 @@ public class KarelConnection implements IConnection {
             if (200 <= responseCode && responseCode < 300) {
                 System.out.println("成功发送请求:" + httpURLConnection);
                 //同时更新缓存。
-                temp.computeIfAbsent(comment.getType(), k -> new HashMap<>());
+                temp.computeIfAbsent(comment.getType(), _ -> new HashMap<>());
                 temp.get(comment.getType()).put(comment.getId(), comment);
                 return true;
             } else {
@@ -140,10 +144,11 @@ public class KarelConnection implements IConnection {
     /**
      * 根据应用场景，将类设计为Builder模式(建造者模式)
      */
-    private KarelConnection(Builder builder) {
+    private KarelConnection(Builder builder) throws URISyntaxException {
         this.host = builder.host;
         this.readPath = builder.readPath;
         this.writePath = builder.writePath;
+        modifyBaseURL(builder.defaultProtocol, host, builder.defaultPort);
         System.out.println("构建成功:\n" + this);
     }
 
@@ -197,25 +202,11 @@ public class KarelConnection implements IConnection {
                     throw new InvalidConnectionPara("Fanuc长文本的服务器修改路径设置错误:writePath is " + writePath);
                 }
 
-                KarelConnection karelConnection = new KarelConnection(this);
-                karelConnection.modifyBaseURL(this.defaultProtocol, this.host, this.defaultPort);
-                return karelConnection;
+                return new KarelConnection(this);
             } catch (URISyntaxException e) {
                 throw new InvalidConnectionPara(e.getMessage());
             }
         }
-    }
-
-
-    /**
-     * 只需要host地址，其他全部采用默认值来生成baseUrl的方式。
-     *
-     * @param host 目标url的host地址。
-     */
-    public void modifyBaseURL(String host) throws URISyntaxException {
-        String defaultProtocol = "http";
-        int defaultPort = 80;
-        modifyBaseURL(defaultProtocol, host, defaultPort);
     }
 
     /**
@@ -292,12 +283,29 @@ public class KarelConnection implements IConnection {
     }
 
 
-    @Override
-    public String toString() {
-        return "KarelConnection{" + "baseUrl='" + baseUrl + '\'' + ", readPath='" + readPath + '\'' + ", writePath='" + writePath + '\'' + ", temp=" + temp + '}';
+    public String getHost() {
+        return host;
     }
 
     public String getBaseUrl() {
         return baseUrl;
+    }
+
+    public String getReadPath() {
+        return readPath;
+    }
+
+    public String getWritePath() {
+        return writePath;
+    }
+
+    @Override
+    public String toString() {
+        return "KarelConnection{" +
+               "host='" + host + '\'' +
+               ", baseUrl='" + baseUrl + '\'' +
+               ", readPath='" + readPath + '\'' +
+               ", writePath='" + writePath + '\'' +
+               '}';
     }
 }
