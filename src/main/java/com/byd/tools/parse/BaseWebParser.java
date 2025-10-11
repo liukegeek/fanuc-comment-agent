@@ -26,7 +26,7 @@ public class BaseWebParser implements KarelWebParser {
     @Override
     public String generateReadPara(CommentType type) {
         return switch (type) {
-            case DI, DO -> "?sfc=33";
+            case DI, DO -> "?sfc=33";   //访问 数字输入、输出 信号的url参数为 '?sfc=33'
         };
     }
 

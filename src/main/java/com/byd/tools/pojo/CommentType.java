@@ -24,23 +24,4 @@ public enum CommentType {
      *
      * @return 最终返回的 sFc参数。
      */
-    public String toUrlWriteSfcPara() {
-        return switch (this) {
-            case DI -> "8";
-            case DO -> "9";
-        };
-    }
-
-    /**
-     * 根据长文本url连接中sfc的值，换算成对应的CommentType对象。
-     * @param sfcPara url连接中sfc的值
-     * @return 按照sfc值应返回的CommentType对象。
-     */
-    public CommentType toCommentType(int sfcPara) {
-        return switch (sfcPara) {
-            case 8 -> DI;
-            case 9 -> DO;
-            default -> throw new IllegalStateException("Unexpected value: " + sfcPara);
-        };
-    }
 }

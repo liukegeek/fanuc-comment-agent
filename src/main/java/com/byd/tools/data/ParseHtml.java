@@ -1,6 +1,6 @@
 package com.byd.tools.data;
 
-import com.byd.tools.exceptions.ParseHtmlFailed;
+import com.byd.tools.exceptions.ParseFailedException;
 import com.byd.tools.pojo.Comment;
 import com.byd.tools.pojo.CommentType;
 import org.apache.logging.log4j.LogManager;
@@ -103,7 +103,7 @@ public class ParseHtml {
             );
         } catch (IOException | NullPointerException e) {
             logger.error("执行ParseHtml遇到错误：" + e.getMessage());
-            throw new ParseHtmlFailed("未能成功解析所提供html文件:" + htmlBaseUri + "具体原因为：" + e);
+            throw new ParseFailedException("未能成功解析所提供html文件:" + htmlBaseUri + "具体原因为：" + e);
         }
         return commentList;
     }

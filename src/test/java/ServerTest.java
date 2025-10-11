@@ -1,10 +1,11 @@
 import com.byd.tools.connect.ConnectServer;
 import com.byd.tools.data.DataToURL;
-import com.byd.tools.data.JsonFileOperator;
+import com.byd.tools.exceptions.JsonFileIOException;
+import com.byd.tools.service.CommentRepository;
 import com.byd.tools.data.ParseHtml;
 import com.byd.tools.pojo.Comment;
 import com.byd.tools.pojo.CommentURLPara;
-import com.byd.tools.service.comment.DownloadComment;
+import com.byd.tools.service.DownloadComment;
 import org.jsoup.Jsoup;
 import org.jsoup.nodes.Document;
 import org.junit.Test;
@@ -72,9 +73,9 @@ public class ServerTest {
      * 测试能否从Json文件中读取出信息并将其成功保存成pojo对象。
      */
     @Test
-    public void testLoadJson(){
-        JsonFileOperator jsonFileOperator = new JsonFileOperator();
-        List<Comment> commentList = jsonFileOperator.loadFromJson("/Users/liuke/IdeaProjects/FanucHelper/src/main/java/com/byd/tools/CommentTest_input.json");
+    public void testLoadJson() throws JsonFileIOException {
+        CommentRepository commentRepository = new CommentRepository();
+        List<Comment> commentList = commentRepository.loadFromLocalFile("/Users/liuke/IdeaProjects/FanucHelper/src/main/java/com/byd/tools/CommentTest_input.json");
         commentList.forEach(System.out::println);
     }
 
@@ -82,10 +83,10 @@ public class ServerTest {
      * 测试能否成功将 长文本对象:Comment  转换成 能够作为url参数发送的: CommentURLPara 对象。
      */
     @Test
-    public void testDataToUrl(){
-        JsonFileOperator jsonFileOperator = new JsonFileOperator();
+    public void testDataToUrl() throws JsonFileIOException {
+        CommentRepository commentRepository = new CommentRepository();
         DataToURL dataToURL = new DataToURL();
-        List<Comment> commentList = jsonFileOperator.loadFromJson("/Users/liuke/IdeaProjects/FanucHelper/src/main/java/com/byd/tools/CommentTest_input.json");
+        List<Comment> commentList = commentRepository.loadFromLocalFile("/Users/liuke/IdeaProjects/FanucHelper/src/main/java/com/byd/tools/CommentTest_input.json");
         List<CommentURLPara> commentURLParaList = dataToURL.transferToPara(commentList);
         commentURLParaList.forEach(System.out::println);
     }
@@ -94,7 +95,7 @@ public class ServerTest {
      * 测试上传长文本
      */
     @Test
-    public void testUploadComment(){
+    public void testUploadComment() throws JsonFileIOException {
         //用于测试(测试时未连接服务器，无法通过Connector对象获取资源),故而临时重写服务器方法进行测试。
         ConnectServer connectServer1 = new ConnectServer("http","192.168.0.1","/karel") {
             @Override
@@ -106,9 +107,9 @@ public class ServerTest {
 
         ConnectServer connectServer = new ConnectServer("http", "192.168.0.1", "/karel");
 
-        JsonFileOperator jsonFileOperator = new JsonFileOperator();
+        CommentRepository commentRepository = new CommentRepository();
         DataToURL dataToURL = new DataToURL();
-        List<Comment> commentList = jsonFileOperator.loadFromJson("/Users/liuke/Documents/fanuc测试/Untitled.json");
+        List<Comment> commentList = commentRepository.loadFromLocalFile("/Users/liuke/Documents/fanuc测试/Untitled.json");
         List<CommentURLPara> commentURLParaList = dataToURL.transferToPara(commentList);
 
         commentURLParaList.forEach(

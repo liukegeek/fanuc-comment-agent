@@ -1,4 +1,4 @@
-package com.byd.tools.service.comment;
+package com.byd.tools.service;
 
 /**
  * ClassName: EditCommentService

@@ -1,15 +1,15 @@
 package com.byd.tools.exceptions;
 
 /**
- * ClassName: InvalidConnectionPara
+ * ClassName: InvalidParaException
  * Package: com.byd.tools.exceptions
  * Description:
  * Author: LiuKe
  * Create: 2025/8/9 17:44
  * Version 1.0
  */
-public class InvalidConnectionPara extends RuntimeException {
-    public InvalidConnectionPara(String message) {
+public class InvalidParaException extends Exception {
+    public InvalidParaException(String message) {
         super(message);
     }
 }

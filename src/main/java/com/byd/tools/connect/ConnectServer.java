@@ -9,7 +9,6 @@ package com.byd.tools.connect;
  * Version 1.0
  */
 
-import com.byd.tools.exceptions.CreateConnectFailed;
 import com.byd.tools.exceptions.RequestFailed;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -48,10 +47,9 @@ public class ConnectServer {
             URL url = URI.create(urlPath).toURL();
             return (HttpURLConnection) url.openConnection();
         } catch (MalformedURLException e) {
-            throw new CreateConnectFailed("URL: " + urlPath + "  未能正确解析,所给URL不合法");
         } catch (IOException e) {
-            throw new CreateConnectFailed("出现了IO异常，未能成功与" + urlPath + "建立连接");
         }
+        return null;
     }
 
     public int testConnectionState(String childPath, String para) {

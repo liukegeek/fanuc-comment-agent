@@ -1,5 +1,6 @@
 package com.byd.tools.parse;
 
+import com.byd.tools.exceptions.InvalidParaException;
 import com.byd.tools.pojo.CommentType;
 
 import java.util.Map;
@@ -14,13 +15,13 @@ import java.util.Map;
  */
 public class WebParserFactory {
     private static final Map<CommentType, KarelWebParser> REGISTRY = Map.of(
-            CommentType.DI, new DioWebParser(),
-            CommentType.DO, new DioWebParser()
+            CommentType.DI, new DiWebParser(),
+            CommentType.DO, new DoWebParser()
     );
 
-    public static KarelWebParser of(CommentType type) {
+    public static KarelWebParser of(CommentType type) throws InvalidParaException {
         KarelWebParser parse = REGISTRY.get(type);
-        if (parse == null) throw new IllegalArgumentException("Unknown type:" + type);
+        if (parse == null) throw new InvalidParaException("Unknown type:" + type);
         return parse;
     }
 }

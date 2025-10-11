@@ -1,4 +1,6 @@
 import com.byd.tools.connect.KarelConnection;
+import com.byd.tools.exceptions.ConnectFailedException;
+import com.byd.tools.exceptions.InvalidParaException;
 import com.byd.tools.pojo.Comment;
 import com.byd.tools.pojo.CommentType;
 import org.junit.Test;
@@ -15,7 +17,7 @@ import java.net.URI;
  */
 public class KarelConnectionTest {
     @Test
-    public void testBuilder() {
+    public void testBuilder() throws InvalidParaException {
         com.byd.tools.connect.KarelConnection karelConnection = new com.byd.tools.connect.KarelConnection.Builder()
                 .port(443)
                 .readPath("/aaa")
@@ -43,7 +45,7 @@ public class KarelConnectionTest {
 
 
     @Test
-    public void testRead() {
+    public void testRead() throws ConnectFailedException, InvalidParaException {
         KarelConnection karelConnection = new KarelConnection.Builder()
                 .protocol("http")
                 .host("192.168.0.1")

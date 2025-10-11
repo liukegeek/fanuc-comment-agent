@@ -1,7 +1,6 @@
-package com.byd.tools.service.comment;
+package com.byd.tools.service;
 
 import com.byd.tools.connect.ConnectServer;
-import com.byd.tools.data.JsonFileOperator;
 import com.byd.tools.pojo.Comment;
 import com.byd.tools.pojo.CommentType;
 import com.byd.tools.data.ParseHtml;
@@ -46,9 +45,9 @@ public class DownloadComment {
             logger.info("成功解析资源，并构建长文本对象");
 
 
-            JsonFileOperator jsonFileOperator = new JsonFileOperator();
+            CommentRepository commentRepository = new CommentRepository();
             //保存所有信号的长文本为Json文件。
-            jsonFileOperator.saveToJson(comments, path);
+            commentRepository.saveToJson(comments, path);
             logger.info("成功将所有信号的长文本保存为Json文件。路径名为:" + path);
 
 
@@ -57,7 +56,7 @@ public class DownloadComment {
                     digitalComment -> digitalComment.getType() == CommentType.DI
             ).toList();
             String inputCommentSavePath = path.substring(0, path.lastIndexOf(".")) + "_input.json";
-            jsonFileOperator.saveToJson(inputComments, inputCommentSavePath);
+            commentRepository.saveToJson(inputComments, inputCommentSavePath);
             logger.info("成功将输入信号的长文本另保存为Json文件。路径名为:" + inputCommentSavePath);
 
             //额外生成一份自由Output信号长文本的 json文件。 路径名为给定的 路径名后拼接"_output"
@@ -65,7 +64,7 @@ public class DownloadComment {
                     digitalComment -> digitalComment.getType() == CommentType.DO
             ).toList();
             String outputCommentSavePath = path.substring(0, path.lastIndexOf(".")) + "_output.json";
-            jsonFileOperator.saveToJson(outputComments, outputCommentSavePath);
+            commentRepository.saveToJson(outputComments, outputCommentSavePath);
             logger.info("成功将输出信号的长文本另保存为Json文件。路径名为:" + outputCommentSavePath);
             return new ServiceResponseInfo("DownloadComment", "成功将长文本保存为JSON文件，路径为：" + path);
         } catch (Exception e) {

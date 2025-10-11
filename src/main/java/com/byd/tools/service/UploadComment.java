@@ -1,4 +1,4 @@
-package com.byd.tools.service.comment;
+package com.byd.tools.service;
 
 /**
  * ClassName: UploadCommentService
@@ -11,7 +11,6 @@ package com.byd.tools.service.comment;
 
 import com.byd.tools.connect.ConnectServer;
 import com.byd.tools.data.DataToURL;
-import com.byd.tools.data.JsonFileOperator;
 import com.byd.tools.exceptions.RequestFailed;
 import com.byd.tools.pojo.Comment;
 import com.byd.tools.pojo.CommentURLPara;
@@ -37,11 +36,11 @@ public class UploadComment {
     }
 
     public ServiceResponseInfo service() {
-        JsonFileOperator jsonFileOperator = new JsonFileOperator();
+        CommentRepository commentRepository = new CommentRepository();
         DataToURL dataToURL = new DataToURL();
 
         try {
-            List<Comment> commentList = jsonFileOperator.loadFromJson(path);
+            List<Comment> commentList = commentRepository.loadFromLocalFile(path);
 
             List<CommentURLPara> commentURLParaList = dataToURL.transferToPara(commentList);
 

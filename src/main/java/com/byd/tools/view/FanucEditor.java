@@ -2,9 +2,9 @@ package com.byd.tools.view;
 
 import com.byd.tools.connect.ConnectServer;
 import com.byd.tools.pojo.ServiceResponseInfo;
-import com.byd.tools.service.comment.DownloadComment;
-import com.byd.tools.service.comment.TestConnectionState;
-import com.byd.tools.service.comment.UploadComment;
+import com.byd.tools.service.DownloadComment;
+import com.byd.tools.service.TestConnectionState;
+import com.byd.tools.service.UploadComment;
 import javafx.application.Application;
 import javafx.geometry.Insets;
 import javafx.scene.Scene;
@@ -16,7 +16,6 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
 import java.io.File;
-import java.io.InputStream;
 
 import static javafx.application.Application.launch;
 

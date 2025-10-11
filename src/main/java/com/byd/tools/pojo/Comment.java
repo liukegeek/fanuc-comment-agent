@@ -15,7 +15,7 @@ import java.util.Objects;
  * Version 1.0
  */
 public class Comment {
-    //注解用来指明，通过Gson将对象序列化成json文件时，key的内容。 如果不使用注解则默认为属性名称。
+    //注解用来指明，通过Gson将对象序列化成json文件时，key的内容。 如果不使用注解则默认为属性名称(field name)。
     @SerializedName("编号")
     private int id;
     @SerializedName("内容")
