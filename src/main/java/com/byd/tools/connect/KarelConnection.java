@@ -49,7 +49,7 @@ public class KarelConnection implements IConnection {
         KarelWebParser webParser = WebParserFactory.of(commentType);
         String readUrlPara = webParser.generateReadPara(commentType);
         String readUrl = baseUrl + readPath + readUrlPara;
-
+    
         try {
             //该类型长文本无缓存，则先从服务器中请求，然后存入到缓存temp中。之后查询便直接通过缓存中查即可。
             if (cacheValid.get(commentType) == null || cacheValid.get(commentType) == false) {
@@ -57,10 +57,10 @@ public class KarelConnection implements IConnection {
                 if (!checkConnect(readUrl)) {
                     throw new ConnectFailedException("与服务器未建立正确连接,无法获取网址:" + readUrl);
                 }
-
-                //如果该类型元素之前未访问过，则先创建hashMap表放入缓存中。随后将该类型元素依次添加进hashMap中即可。
+    
+                //如果该类型元素之前未访问过，则先创建hashMap表放入缓存中。 subsequent将该类型元素依次添加进hashMap中即可。
                 cache.put(commentType, new HashMap<>());
-
+    
                 HttpURLConnection httpURLConnection = createConnection(readUrl);
                 try (InputStream karelInputStream = httpURLConnection.getInputStream()) {
                     List<Comment> commentList = webParser.parseDataFromHtml(karelInputStream, "GBK", readUrl);
@@ -75,12 +75,15 @@ public class KarelConnection implements IConnection {
                             cache.get(commentType).put(x.getId(), x);
                         }
                     });
+                } finally {
+                    // 确保关闭HTTP连接
+                    httpURLConnection.disconnect();
                 }
                 // 全部读完则设置为缓存有效。
                 cacheValid.put(commentType, true);
             }
-
-
+    
+    
             //先根据类型，从缓存中找到所有该type的Map集合，然后根据id直接返回对应的comment对象。
             return cache.get(commentType).get(id);
         } catch (IOException e) {
@@ -140,16 +143,21 @@ public class KarelConnection implements IConnection {
             }
 
             HttpURLConnection httpURLConnection = createConnection(writeUrl);
-            int responseCode = httpURLConnection.getResponseCode();
-            httpURLConnection.getInputStream().close(); //获取流并直接关闭，丢弃服务器可能返回的数据实体，释放资源
-            if (200 <= responseCode && responseCode < 300) {
-                System.out.println("成功发送请求:" + httpURLConnection);
-                //同时销毁旧的缓存
-                cacheValid.put(comment.getType(), false);
-                return true;
-            } else {
-                System.out.println("请求发送失败");
-                return false;
+            try {
+                int responseCode = httpURLConnection.getResponseCode();
+                httpURLConnection.getInputStream().close(); //获取流并直接关闭，丢弃服务器可能返回的数据实体，释放资源
+                if (200 <= responseCode && responseCode < 300) {
+                    System.out.println("成功发送请求:" + httpURLConnection);
+                    //同时销毁旧的缓存
+                    cacheValid.put(comment.getType(), false);
+                    return true;
+                } else {
+                    System.out.println("请求发送失败");
+                    return false;
+                }
+            } finally {
+                // 确保关闭HTTP连接
+                httpURLConnection.disconnect();
             }
         } catch (IOException e) {
             System.out.println("由于写入操作未能正常运行");
@@ -280,11 +288,12 @@ public class KarelConnection implements IConnection {
      */
     private boolean checkConnect(String targetUrl) {
 
-        boolean connectOpen;
-        int responseCode;
-
+        boolean connectOpen = false;
+        int responseCode = -1;
+        HttpURLConnection httpURLConnection = null;
+    
         try {
-            HttpURLConnection httpURLConnection = createConnection(targetUrl);
+            httpURLConnection = createConnection(targetUrl);
             responseCode = httpURLConnection.getResponseCode();
             httpURLConnection.getInputStream().close(); //只需要状态码就行，丢弃响应体释放连接资源。
             connectOpen = switch (responseCode) {
@@ -304,10 +313,14 @@ public class KarelConnection implements IConnection {
         } catch (IOException e) {
             System.out.println("进行连接通信时，出现IO异常：" + e);
             connectOpen = false;
-
         } catch (ConnectFailedException e) {
             System.out.println("无法创建连接" + e);
             connectOpen = false;
+        } finally {
+            // 确保关闭HTTP连接
+            if (httpURLConnection != null) {
+                httpURLConnection.disconnect();
+            }
         }
         return connectOpen;
     }
