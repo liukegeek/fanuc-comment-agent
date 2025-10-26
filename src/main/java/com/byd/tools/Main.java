@@ -4,13 +4,14 @@ import com.byd.tools.connect.IConnection;
 import com.byd.tools.connect.KarelConnection;
 import com.byd.tools.exceptions.ConnectFailedException;
 import com.byd.tools.exceptions.InvalidParaException;
+import com.byd.tools.exceptions.JsonFileIOException;
 import com.byd.tools.pojo.Comment;
 import com.byd.tools.pojo.CommentType;
+import com.byd.tools.service.CommentRepository;
 import com.byd.tools.service.CommentService;
-import com.byd.tools.view.FanucEditor;
-import javafx.application.Application;
 
 import java.net.URISyntaxException;
+import java.util.List;
 
 /**
  * ClassName: Main
@@ -21,7 +22,7 @@ import java.net.URISyntaxException;
  * Version 1.0
  */
 public class Main {
-    public static void main(String[] args) throws URISyntaxException, InvalidParaException, ConnectFailedException {
+    public static void main(String[] args) throws URISyntaxException, InvalidParaException, ConnectFailedException, JsonFileIOException {
 
         KarelConnection.Builder builder = new KarelConnection.Builder();
         builder.host("192.168.0.1")
@@ -32,6 +33,7 @@ public class Main {
         IConnection connection = builder.build();
 
         CommentService commentService = new CommentService(connection);
+        CommentRepository commentRepository  = new CommentRepository();
 
         // http://192.168.0.1:8080/karel/ComSet?sComment=%B3%CC%D0%F2%B2%E2%CA%D4&sIndx=470&sFc=8
 
@@ -47,8 +49,12 @@ public class Main {
         System.out.println(queryByIDDO);
 
 
-        commentService.queryByKeyword("水流量", CommentType.DI).forEach(System.out::println);
+        List<Comment> queryList = commentService.queryByKeyword("水流量", CommentType.DI);
 
+        commentRepository.saveToJson(queryList,"/Users/liuke/IdeaProjects/FanucHelper/水流量.json");
+
+        List<Comment> loadedList = commentRepository.loadFromLocalFile("/Users/liuke/IdeaProjects/FanucHelper/水流量.json");
+        loadedList.forEach(System.out::println);
 
 
 //        FanucEditor fanucEditor = new FanucEditor();

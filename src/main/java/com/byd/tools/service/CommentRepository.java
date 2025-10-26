@@ -40,21 +40,6 @@ public class CommentRepository {
             throw new InvalidParaException("要保存的长文本列表为空");
         }
 
-        // 如果直接如下生成gson对象，那么生成的String就「压缩格式」:即所有json对象挤在一行，无空格与换行符。无阅读体验，舍弃。
-//        StringBuilder commentsJson = new StringBuilder();
-//        int size = commentList.size();
-//        commentsJson.append("[\n");
-//        Gson gson = new Gson();
-//        for (int i = 0; i < size; i++) {
-//            commentsJson.append("\t");
-//            commentsJson.append(gson.toJson(commentList.get(i)));
-//            if (i<size-1){
-//                commentsJson.append(",\n");
-//            }
-//        }
-//        commentsJson.append("\n]");
-
-
         // 通过`setPrettyPrinting()` 方法可以自动添加上必要的空格与换行符，生成便于查看与编写的json格式。
         Gson gson = new GsonBuilder().setPrettyPrinting().create();
         String commentsJson = gson.toJson(commentList);
