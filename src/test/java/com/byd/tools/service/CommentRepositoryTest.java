@@ -77,7 +77,7 @@ public class CommentRepositoryTest {
         assertNotNull("加载的评论列表不应为null", loadedComments);
         assertEquals("加载的评论数量应与保存的相同", testCommentList1.size(), loadedComments.size());
         assertEquals("第一个评论的ID应相同", testCommentList1.get(0).getId(), loadedComments.get(0).getId());
-        assertEquals("第一个评论的内容应相同", testCommentList1.get(0).getComment(), loadedComments.get(0).getComment());
+        assertEquals("第一个评论的内容应相同", testCommentList1.get(0).getContent(), loadedComments.get(0).getContent());
     }
 
     /**
@@ -177,7 +177,7 @@ public class CommentRepositoryTest {
             Comment original = testCommentList1.get(i);
             Comment loaded = loadedComments.get(i);
             assertEquals("ID应相同", original.getId(), loaded.getId());
-            assertEquals("评论内容应相同", original.getComment(), loaded.getComment());
+            assertEquals("评论内容应相同", original.getContent(), loaded.getContent());
             assertEquals("评论类型应相同", original.getType(), loaded.getType());
         }
     }
@@ -217,7 +217,7 @@ public class CommentRepositoryTest {
         assertEquals("列表大小应一致", complexList.size(), loadedList.size());
         for (int i = 0; i < complexList.size(); i++) {
             assertEquals("ID应一致", complexList.get(i).getId(), loadedList.get(i).getId());
-            assertEquals("评论内容应一致", complexList.get(i).getComment(), loadedList.get(i).getComment());
+            assertEquals("评论内容应一致", complexList.get(i).getContent(), loadedList.get(i).getContent());
             assertEquals("类型应一致", complexList.get(i).getType(), loadedList.get(i).getType());
         }
     }

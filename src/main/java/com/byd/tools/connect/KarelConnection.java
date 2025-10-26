@@ -133,7 +133,7 @@ public class KarelConnection implements IConnection {
 
         KarelWebParser webParser = WebParserFactory.of(comment.getType());
 
-        String urlPara = webParser.generateWritePara(comment.getType(), comment.getId(), comment.getComment(), "GBK");
+        String urlPara = webParser.generateWritePara(comment.getType(), comment.getId(), comment.getContent(), "GBK");
         String writeUrl = baseUrl + writePath + urlPara;
 
         try {

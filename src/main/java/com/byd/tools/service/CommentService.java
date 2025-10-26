@@ -53,7 +53,7 @@ public class CommentService {
      */
     public List<Comment> queryByKeyword(String keyword, CommentType commentType) throws ConnectFailedException, InvalidParaException {
         return connection.readAllComments(commentType).stream()
-                .filter(comment -> comment.getComment().contains(keyword))
+                .filter(comment -> comment.getContent().contains(keyword))
                 .toList();
     }
 
