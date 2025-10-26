@@ -8,30 +8,32 @@ import java.util.Objects;
  * ClassName: FanucComment
  * Package: com.byd.tools.pojo
  * Description:
+ * 用来包装一行长文本信息的类,包括:编号(id)、内容(content)、类型(type)
+ * 例如： 对于 数字量输出信号289，其长文本内容为：水复位，那么用该类包装即为 Comment(289,"水复位",DI)
  * Author: LiuKe
  * Create: 2025/4/16 21:46
  * Version 1.0
  */
-public class DigitalComment {
-    //注解用来指明，通过Gson将对象序列化成json文件时，key的内容。 如果不使用注解则默认为属性名称。
+public class Comment {
+    //注解用来指明，通过Gson将对象序列化成json文件时，key的内容。 如果不使用注解则默认为属性名称(field name)。
     @SerializedName("编号")
     private int id;
     @SerializedName("内容")
-    private String comment;
+    private String content;
     @SerializedName("类型")
     private CommentType type;
 
-    public DigitalComment() {
+    public Comment() {
     }
 
-    public DigitalComment(int id, String comment) {
+    public Comment(int id, String content) {
         this.id = id;
-        this.comment = comment;
+        this.content = content;
     }
 
-    public DigitalComment(int id, String comment, CommentType type) {
+    public Comment(int id, String content, CommentType type) {
         this.id = id;
-        this.comment = comment;
+        this.content = content;
         this.type = type;
     }
 
@@ -43,12 +45,12 @@ public class DigitalComment {
         this.id = id;
     }
 
-    public String getComment() {
-        return comment;
+    public String getContent() {
+        return content;
     }
 
-    public void setComment(String comment) {
-        this.comment = comment;
+    public void setContent(String content) {
+        this.content = content;
     }
 
     public CommentType getType() {
@@ -63,7 +65,7 @@ public class DigitalComment {
     public String toString() {
         return "FanucComment{" +
                "id=" + id +
-               ", tools='" + comment + '\'' +
+               ", comment='" + content + '\'' +
                ", type=" + type +
                '}';
     }
@@ -72,7 +74,7 @@ public class DigitalComment {
     public boolean equals(Object o) {
         if (this == o) return true;
         if (o == null || getClass() != o.getClass()) return false;
-        DigitalComment that = (DigitalComment) o;
-        return id == that.id && Objects.equals(comment, that.comment);
+        Comment that = (Comment) o;
+        return id == that.id && Objects.equals(content, that.content);
     }
 }

@@ -19,7 +19,7 @@ module FanucHelper {
     exports com.byd.tools.control;
     exports com.byd.tools.exceptions;
     exports com.byd.tools.pojo;
-    exports com.byd.tools.service.comment;
+    exports com.byd.tools.service;
 
     exports com.byd.tools.view;           // ✅ 重点：主类所在包必须 exports
 

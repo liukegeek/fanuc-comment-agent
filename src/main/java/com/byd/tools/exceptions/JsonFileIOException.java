@@ -8,7 +8,7 @@ package com.byd.tools.exceptions;
  * Create: 2025/4/20 16:27 
  * Version 1.0   
 */
-public class JsonFileIOException extends RuntimeException {
+public class JsonFileIOException extends Exception {
   public JsonFileIOException(String message) {
     super(message);
   }
