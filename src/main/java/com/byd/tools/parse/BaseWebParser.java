@@ -56,7 +56,7 @@ public class BaseWebParser implements KarelWebParser {
             case GO -> "11";
             case AI -> "12";
             case AO -> "13";
-            case FLAG -> "77";
+            case FLAG -> "77"; //需验证
             case null -> "null";
         };
 
