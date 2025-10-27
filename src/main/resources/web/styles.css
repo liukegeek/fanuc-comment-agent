@@ -144,7 +144,7 @@ body {
 
 .content-grid {
     display: grid;
-    grid-template-columns: minmax(320px, 360px) minmax(0, 1fr);
+    grid-template-columns: minmax(0, 1fr) minmax(320px, 360px);
     gap: 24px;
     align-items: start;
 }
@@ -175,6 +175,10 @@ body {
 
 .operation-inputs.range {
     gap: 8px;
+}
+
+.operation-inputs.range input {
+    flex: 0 1 120px;
 }
 
 .range-divider {
@@ -259,10 +263,27 @@ button.full-width {
     width: 100%;
 }
 
+button.ghost {
+    background: transparent;
+    color: #1f2937;
+    border: 1px solid var(--border);
+    padding: 8px 14px;
+}
+
+button.ghost:not(:disabled):hover {
+    background: #f3f4f6;
+    transform: translateY(-1px);
+    box-shadow: 0 6px 14px rgba(55, 65, 81, 0.12);
+}
+
+button.ghost:disabled {
+    opacity: 0.4;
+}
+
 .display-card {
     display: flex;
     flex-direction: column;
-    gap: 16px;
+    gap: 20px;
 }
 
 .display-header {
@@ -287,6 +308,11 @@ button.full-width {
     color: var(--idle-text);
 }
 
+.badge.state-idle {
+    background: var(--idle-bg);
+    color: var(--idle-text);
+}
+
 .badge.state-queried {
     background: var(--success-bg);
     color: var(--success-text);
@@ -302,10 +328,50 @@ button.full-width {
     color: #6b7280;
 }
 
+
+.display-columns {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 18px;
+}
+
+.display-panel {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    min-height: 320px;
+}
+
+.panel-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 12px;
+}
+
+.panel-title {
+    font-weight: 600;
+    font-size: 16px;
+    color: #1f2937;
+}
+
+.panel-state {
+    white-space: nowrap;
+}
+
 .table-wrapper {
     border: 1px solid var(--border);
     border-radius: 16px;
     overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    min-height: 260px;
+}
+
+.table-scroll {
+    flex: 1;
+    max-height: 420px;
+    overflow: auto;
 }
 
 table {
@@ -343,6 +409,23 @@ tbody tr.selected {
     text-align: center;
     color: #9ca3af;
     padding: 40px 0;
+}
+
+.panel-empty {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    color: #9ca3af;
+    padding: 24px;
+}
+
+textarea[readonly] {
+    background: #f9fafb;
+    color: #6b7280;
+    cursor: default;
+    resize: none;
 }
 
 .status-bar {
@@ -407,6 +490,10 @@ tbody tr.selected {
 
 @media (max-width: 1024px) {
     .content-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .display-columns {
         grid-template-columns: 1fr;
     }
 }

@@ -6,14 +6,29 @@ function createDemoBridge() {
         content: `${prefix} 示例注释 ${idx + 1}`,
     }));
 
-    const store = Vue.reactive({
-        AI: seed("AI"),
-        DI: seed("DI"),
-        DO: seed("DO"),
-        RO: seed("RO"),
-        GO: seed("GO"),
-        "NUM_REGISTER": seed("NUM"),
-    });
+    const demoTypes = [
+        "R_Comment",
+        "R_Value",
+        "PR",
+        "SR_Comment",
+        "SR_Value",
+        "RI",
+        "RO",
+        "DI",
+        "DO",
+        "GI",
+        "GO",
+        "AI",
+        "AO",
+        "FLAG",
+    ];
+
+    const store = Vue.reactive(
+        demoTypes.reduce((acc, type) => {
+            acc[type] = seed(type);
+            return acc;
+        }, {})
+    );
 
     const clone = (data) => JSON.parse(JSON.stringify(data));
     const delay = (result, timeout = 320) => new Promise((resolve) => setTimeout(() => resolve(clone(result)), timeout));
@@ -71,12 +86,20 @@ function formatTime(date) {
 createApp({
     data() {
         const typeButtons = [
-            { label: "AI", value: "AI" },
-            { label: "DI", value: "DI" },
-            { label: "DO", value: "DO" },
-            { label: "RO", value: "RO" },
-            { label: "GO", value: "GO" },
-            { label: "NUM REGISTER", value: "NUM_REGISTER" },
+            { label: "R_Comment", value: "R_Comment", tooltip: "数值寄存器的注释" },
+            { label: "R_Value", value: "R_Value", tooltip: "数值寄存器的值" },
+            { label: "PR", value: "PR", tooltip: "位置寄存器的注释" },
+            { label: "SR_Comment", value: "SR_Comment", tooltip: "字符串寄存器的注释" },
+            { label: "SR_Value", value: "SR_Value", tooltip: "字符串寄存器的值" },
+            { label: "RI", value: "RI", tooltip: "机器人输入信号" },
+            { label: "RO", value: "RO", tooltip: "机器人输出信号" },
+            { label: "DI", value: "DI", tooltip: "数字输入信号" },
+            { label: "DO", value: "DO", tooltip: "数字输出信号" },
+            { label: "GI", value: "GI", tooltip: "组输入信号" },
+            { label: "GO", value: "GO", tooltip: "组输出信号" },
+            { label: "AI", value: "AI", tooltip: "模拟输入信号" },
+            { label: "AO", value: "AO", tooltip: "模拟输出信号" },
+            { label: "FLAG", value: "FLAG", tooltip: "标签" },
         ];
 
         const records = {};
@@ -91,6 +114,10 @@ createApp({
             selectedType: typeButtons[0].value,
             typeStates,
             records,
+            displayPanels: [
+                { type: null },
+                { type: null },
+            ],
             search: {
                 singleId: "",
                 keyword: "",
@@ -124,6 +151,15 @@ createApp({
         statusTimestamp() {
             return formatTime(this.statusUpdatedAt);
         },
+        displayedPanels() {
+            return this.displayPanels.map((panel) => ({
+                type: panel.type,
+                items: panel.type ? this.records[panel.type].items : [],
+            }));
+        },
+        totalDisplayedCount() {
+            return this.displayedPanels.reduce((sum, panel) => sum + (panel.items?.length || 0), 0);
+        },
     },
     created() {
         this.commentApi = window.CommentUIBridge ?? createDemoBridge();
@@ -152,7 +188,8 @@ createApp({
             if (state === "modified") return "存在待上传的本地修改";
             return "尚未加载数据";
         },
-        selectRow(index) {
+        selectRow(type, index) {
+            this.selectedType = type;
             this.selectedRowIndex = index;
         },
         cloneItems(items) {
@@ -167,6 +204,7 @@ createApp({
             if (type === this.selectedType) {
                 this.selectedRowIndex = null;
             }
+            this.updateDisplayPanels(type);
         },
         applyLocalRecords(type, items) {
             const normalized = this.normalizeItems(items);
@@ -177,6 +215,7 @@ createApp({
             if (type === this.selectedType) {
                 this.selectedRowIndex = null;
             }
+            this.updateDisplayPanels(type);
         },
         normalizeItems(items) {
             if (!items) return [];
@@ -187,17 +226,57 @@ createApp({
                     content: item.content ?? "",
                 }));
         },
-        handleContentChange() {
-            const record = this.records[this.selectedType];
+        handleContentChange(type) {
+            const record = this.records[type];
+            if (!record) return;
             if (record.source === "local") {
-                this.typeStates[this.selectedType] = record.items.length ? "modified" : "idle";
+                this.typeStates[type] = record.items.length ? "modified" : "idle";
                 return;
             }
             const { items, original } = record;
             const hasDiff =
                 items.length !== original.length ||
                 items.some((item, index) => item.content !== (original[index] ? original[index].content : undefined));
-            this.typeStates[this.selectedType] = hasDiff ? "modified" : record.items.length ? "queried" : "idle";
+            this.typeStates[type] = hasDiff ? "modified" : record.items.length ? "queried" : "idle";
+        },
+        panelState(type) {
+            if (!type) return "idle";
+            return this.typeStates[type] ?? "idle";
+        },
+        isPanelEditable(type) {
+            return type && type === this.selectedType;
+        },
+        updateDisplayPanels(type) {
+            if (!type) return;
+            const currentPrimary = this.displayPanels[0];
+            if (currentPrimary?.type === type) {
+                this.displayPanels.splice(0, 1, { type });
+                return;
+            }
+            const newPrimary = { type };
+            const fallbackSecondary = this.displayPanels[0]?.type ? { type: this.displayPanels[0].type } : { type: null };
+            if (this.displayPanels[1]?.type === type) {
+                // move secondary to primary and keep the previous primary as secondary
+                const previousPrimary = this.displayPanels[0]?.type ? { type: this.displayPanels[0].type } : { type: null };
+                this.displayPanels.splice(0, 1, newPrimary);
+                this.displayPanels.splice(1, 1, previousPrimary);
+                return;
+            }
+            this.displayPanels.splice(1, 1, fallbackSecondary);
+            this.displayPanels.splice(0, 1, newPrimary);
+        },
+        clearDisplay() {
+            this.displayPanels.forEach((panel) => {
+                if (panel.type && this.records[panel.type]) {
+                    this.records[panel.type].items = [];
+                    this.records[panel.type].original = [];
+                    this.records[panel.type].source = "none";
+                    this.typeStates[panel.type] = "idle";
+                }
+            });
+            this.displayPanels.splice(0, 2, { type: null }, { type: null });
+            this.selectedRowIndex = null;
+            this.setStatus("已清空展示区域内容。", "info");
         },
         async queryById() {
             const id = this.search.singleId.trim();
@@ -253,7 +332,7 @@ createApp({
                 await this.commentApi.updateComment(this.selectedType, payload);
                 record.original[this.selectedRowIndex] = this.cloneItems([payload])[0];
                 record.source = "server";
-                this.handleContentChange();
+                this.handleContentChange(this.selectedType);
                 this.setStatus(`已更新 ID ${payload.id} 的注释至服务器。`, "success");
             });
         },
@@ -288,7 +367,7 @@ createApp({
             a.download = `${this.selectedType.toLowerCase()}-comments.json`;
             a.click();
             URL.revokeObjectURL(url);
-            this.setStatus("已保存为本地 JSON 文件。", "success");
+            this.setStatus("已保存至本地 JSON 文件。", "success");
         },
         loadFromLocal() {
             const input = this.$refs.fileInput;
