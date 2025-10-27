@@ -116,7 +116,14 @@ createApp({
         const records = {};
         const typeStates = {};
         typeButtons.forEach((btn) => {
-            records[btn.value] = { items: [], original: [], source: "none", selected: [] };
+            records[btn.value] = {
+                items: [],
+                original: [],
+                source: "none",
+                selected: [],
+                flashActive: false,
+                flashTimer: null,
+            };
             typeStates[btn.value] = "idle";
         });
 
@@ -191,6 +198,15 @@ createApp({
             this.setStatus("当前展示为示例数据，可随时替换为实际接口。", "info");
             this.queryAll();
         }
+    },
+    beforeUnmount() {
+        // 组件卸载前清理仍在等待的动画计时器，避免潜在的内存泄露。
+        Object.values(this.records).forEach((record) => {
+            if (record.flashTimer) {
+                clearTimeout(record.flashTimer);
+                record.flashTimer = null;
+            }
+        });
     },
     methods: {
         // ------------------------------------------------------------------
@@ -267,6 +283,7 @@ createApp({
             record.selected = [];
             this.selectedType = type;
             this.updateDisplayPanels(type);
+            this.triggerFlash(type);
         },
         applyLocalRecords(type, items) {
             const normalized = this.normalizeItems(items);
@@ -277,6 +294,7 @@ createApp({
             record.selected = [];
             this.selectedType = type;
             this.updateDisplayPanels(type);
+            this.triggerFlash(type);
         },
         handleContentChange(type) {
             const record = this.records[type];
@@ -287,6 +305,7 @@ createApp({
             if (!this.hasRecordDiff(record)) {
                 record.source = record.source === "local" ? "local" : "server";
             }
+            this.triggerFlash(type);
             this.refreshTypeStates();
         },
         // ------------------------------------------------------------------
@@ -313,13 +332,36 @@ createApp({
             if (state === "modified") return "存在待上传的本地修改";
             return "尚未加载数据";
         },
-        selectRow(type) {
-            this.selectedType = type;
-        },
+        // 供模板判断某一行是否处于选中状态，决定视觉高亮。
         isRowSelected(type, itemId) {
             const record = this.records[type];
             if (!record) return false;
             return record.selected.includes(String(itemId));
+        },
+        // 允许用户点击行来切换选中状态，方便批量操作。
+        toggleRowSelection(type, itemId) {
+            if (!type) return;
+            this.selectedType = type;
+            const record = this.records[type];
+            if (!record) return;
+            const key = String(itemId);
+            const index = record.selected.indexOf(key);
+            if (index >= 0) {
+                record.selected.splice(index, 1);
+            } else {
+                record.selected.push(key);
+            }
+        },
+        // 在用户开始编辑时，自动将该行加入选中集合，保持高亮一致。
+        ensureRowSelection(type, itemId) {
+            if (!type) return;
+            this.selectedType = type;
+            const record = this.records[type];
+            if (!record) return;
+            const key = String(itemId);
+            if (!record.selected.includes(key)) {
+                record.selected.push(key);
+            }
         },
         togglePanelSelection(type) {
             if (!type) return;
@@ -336,6 +378,13 @@ createApp({
         },
         isPanelEditable(type) {
             return type && type === this.selectedType;
+        },
+        // 行样式统一封装，便于集中控制选中态、编辑态等视觉效果。
+        rowClasses(type, itemId) {
+            return {
+                selected: this.isRowSelected(type, itemId),
+                editable: this.isPanelEditable(type),
+            };
         },
         updateDisplayPanels(type) {
             if (!type) return;
@@ -366,6 +415,23 @@ createApp({
             if (!type) return "idle";
             return this.typeStates[type] ?? "idle";
         },
+        // 判断某个类型是否处于动画状态，用于触发 CSS 闪烁效果。
+        isFlashing(type) {
+            return Boolean(type && this.records[type]?.flashActive);
+        },
+        // 为指定类型的数据面板触发一次短暂的闪烁，提示用户数据发生了变化。
+        triggerFlash(type) {
+            const record = this.records[type];
+            if (!record) return;
+            if (record.flashTimer) {
+                clearTimeout(record.flashTimer);
+            }
+            record.flashActive = true;
+            record.flashTimer = setTimeout(() => {
+                record.flashActive = false;
+                record.flashTimer = null;
+            }, 650);
+        },
         clearDisplay() {
             this.displayPanels.forEach((panel) => {
                 if (panel.type && this.records[panel.type]) {
@@ -374,6 +440,11 @@ createApp({
                     record.original = [];
                     record.source = "none";
                     record.selected = [];
+                    record.flashActive = false;
+                    if (record.flashTimer) {
+                        clearTimeout(record.flashTimer);
+                        record.flashTimer = null;
+                    }
                 }
             });
             this.displayPanels.splice(0, 2, { type: null }, { type: null });
