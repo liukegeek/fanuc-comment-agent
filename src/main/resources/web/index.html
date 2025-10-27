@@ -108,11 +108,15 @@
                             </div>
                             <div class="table-wrapper">
                                 <template v-if="panel.type">
-                                    <div v-if="panel.items.length" class="table-scroll">
+                                    <!-- 当数据刷新或编辑时会附加 flash-once 类，通过 CSS 动画提醒用户。 -->
+                                    <div
+                                        v-if="panel.items.length"
+                                        :class="['table-scroll', { 'flash-once': isFlashing(panel.type) }]"
+                                    >
+                                        <!-- 点击整行即可切换选中状态，取消了显式复选框改用颜色高亮表现。 -->
                                         <table>
                                             <thead>
                                                 <tr>
-                                                    <th class="select-col">选择</th>
                                                     <th class="id-col">索引 ID</th>
                                                     <th>内容 Content</th>
                                                 </tr>
@@ -121,24 +125,17 @@
                                                 <tr
                                                     v-for="(item, rowIndex) in panel.items"
                                                     :key="item.id ?? rowIndex"
-                                                    :class="{ selected: isRowSelected(panel.type, item.id) }"
-                                                    @click="selectRow(panel.type)"
+                                                    :class="rowClasses(panel.type, item.id)"
+                                                    @click="toggleRowSelection(panel.type, item.id)"
                                                 >
-                                                    <td class="select-col">
-                                                        <input
-                                                            type="checkbox"
-                                                            :value="String(item.id)"
-                                                            v-model="records[panel.type].selected"
-                                                            @change.stop="selectRow(panel.type)"
-                                                        />
-                                                    </td>
                                                     <td class="id-col">{{ item.id }}</td>
                                                     <td>
                                                         <textarea
                                                             v-model="item.content"
                                                             :readonly="!isPanelEditable(panel.type)"
                                                             @input="handleContentChange(panel.type)"
-                                                            @focus="selectRow(panel.type)"
+                                                            @click.stop
+                                                            @focus="ensureRowSelection(panel.type, item.id)"
                                                             placeholder="在此处编辑注释内容"
                                                         ></textarea>
                                                     </td>
