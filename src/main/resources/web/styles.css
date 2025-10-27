@@ -428,7 +428,8 @@ button.ghost:disabled {
 }
 
 .table-scroll.flash-once {
-    animation: flash-once 0.65s ease-out;
+    /* 让面板在两秒内进行柔和的明暗过渡，强化更新提示。 */
+    animation: panel-refresh 2s ease-in-out;
 }
 
 .table-scroll::-webkit-scrollbar {
@@ -466,6 +467,9 @@ th.id-col,
 td.id-col {
     width: 120px;
     font-variant-numeric: tabular-nums;
+    /* 数字列居中对齐并垂直置中，避免与可编辑区域产生高度落差。 */
+    text-align: center;
+    vertical-align: middle;
 }
 
 tbody tr {
@@ -490,15 +494,26 @@ tbody tr.editable textarea {
     cursor: text;
 }
 
-@keyframes flash-once {
+@keyframes panel-refresh {
     0% {
-        box-shadow: 0 0 0 0 rgba(37, 99, 235, 0.35);
+        box-shadow: 0 0 0 0 rgba(37, 99, 235, 0);
+        background: rgba(59, 130, 246, 0.12);
     }
-    40% {
-        box-shadow: 0 0 0 6px rgba(37, 99, 235, 0.2);
+    25% {
+        box-shadow: 0 0 0 6px rgba(37, 99, 235, 0.25);
+        background: rgba(191, 219, 254, 0.45);
+    }
+    50% {
+        box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.2);
+        background: rgba(219, 234, 254, 0.35);
+    }
+    75% {
+        box-shadow: 0 0 0 5px rgba(37, 99, 235, 0.22);
+        background: rgba(191, 219, 254, 0.45);
     }
     100% {
         box-shadow: 0 0 0 0 rgba(37, 99, 235, 0);
+        background: transparent;
     }
 }
 
