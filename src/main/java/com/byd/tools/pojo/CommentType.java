@@ -13,16 +13,25 @@ package com.byd.tools.pojo;
 
 public enum CommentType {
     /**
-     * NUM_REGISTER 代表数值寄存器
+     * NUM_REGISTER_COMMENT 代表数值寄存器的注释
+     * NUM_REGISTER_VALUE 代表数值寄存器的值
      * POSITION_REGISTER 代表位置寄存器
-     * STRING_REGISTER 代表字符串寄存器
+     * STRING_REGISTER_COMMENT 代表字符串寄存器的注释
+     * STRING_REGISTER_VALUE 代表字符串寄存器的值
      * RI 代表机器人输入信号，RO 代表机器人输出信号
      * DI 代表数字输入信号、DO代表数字输出信号。
      * GI 代表组输入信号、GO 代表组输出信号
      * AI 代表模拟输入信号、AO 代表模拟输出信号
      * FLAG 代表标签位
      */
-    NUM_REGISTER, POSITION_REGISTER, STRING_REGISTER, RI, RO, DI, DO, GI, GO, AI, AO,FLAG
+    NUM_REGISTER_COMMENT,NUM_REGISTER_VALUE,
+    POSITION_REGISTER,
+    STRING_REGISTER_COMMENT,STRING_REGISTER_VALUE,
+    RI, RO,
+    DI, DO,
+    GI, GO,
+    AI, AO,
+    FLAG
 
     /**
      * 在将长文本写入到服务器时，需要根据输入还是输出信号，在url连接中添加上sFc参数。
