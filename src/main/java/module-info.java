@@ -22,7 +22,7 @@ module FanucHelper {
     exports com.byd.tools.pojo;
     exports com.byd.tools.service;
 
-    exports com.byd.tools.view;           // ✅ 重点：主类所在包必须 exports
+//    exports com.byd.tools.view;           // ✅ 重点：主类所在包必须 exports
 
     exports com.byd.tools;         // 如果你的 FXML 或外部访问这个包，需要 export
     exports com.byd.tools.web;
