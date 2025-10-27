@@ -14,16 +14,18 @@ module FanucHelper {
     requires org.jsoup;
     requires java.logging;
     requires org.apache.logging.log4j;
+    requires jdk.httpserver;
+    requires java.desktop;
 
     exports com.byd.tools.connect;
-    exports com.byd.tools.control;
     exports com.byd.tools.exceptions;
     exports com.byd.tools.pojo;
     exports com.byd.tools.service;
 
-    exports com.byd.tools.view;           // ✅ 重点：主类所在包必须 exports
+//    exports com.byd.tools.view;           // ✅ 重点：主类所在包必须 exports
 
     exports com.byd.tools;         // 如果你的 FXML 或外部访问这个包，需要 export
+    exports com.byd.tools.web;
 
     opens com.byd.tools.pojo to com.google.gson; // ✅ 解决 Gson 无法访问的问题
 }

@@ -26,9 +26,9 @@ public class BaseWebParser implements KarelWebParser {
     @Override
     public String generateReadPara(CommentType type) {
         return switch (type) {
-            case NUM_REGISTER -> "?sfc=28";
+            case NUM_REGISTER_COMMENT, NUM_REGISTER_VALUE -> "?sfc=28";
             case POSITION_REGISTER -> "?sfc=29";
-            case STRING_REGISTER -> "?sfc=30";
+            case STRING_REGISTER_COMMENT, STRING_REGISTER_VALUE -> "?sfc=30";
             case RI, RO -> "?sfc=32";
             case DI, DO -> "?sfc=33";   //访问 数字输入、输出 信号的url参数为 '?sfc=33'
             case GI, GO -> "?sfc=34";
@@ -43,11 +43,11 @@ public class BaseWebParser implements KarelWebParser {
             System.out.println("未明确要提交的数据的类型");
         }
         String commentTypeCode = switch (type) {
-            case NUM_REGISTER -> "1";
-            //缺少 数值寄存器的值 2
+            case NUM_REGISTER_COMMENT -> "1";
+            case NUM_REGISTER_VALUE -> "2";
             case POSITION_REGISTER -> "3";
-            case STRING_REGISTER -> "14";
-            //缺少 字符串寄存器的值 15
+            case STRING_REGISTER_COMMENT -> "14";
+            case STRING_REGISTER_VALUE -> "15";
             case RI -> "6";
             case RO -> "7";
             case DI -> "8";
@@ -56,7 +56,7 @@ public class BaseWebParser implements KarelWebParser {
             case GO -> "11";
             case AI -> "12";
             case AO -> "13";
-            case FLAG -> "77";
+            case FLAG -> "77"; //需验证
             case null -> "null";
         };
 
