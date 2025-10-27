@@ -1,10 +1,16 @@
 const { createApp } = Vue;
 
+// -----------------------------------------------------------------------------
+// 演示桥接：当 Java 侧尚未注入真实的 CommentUIBridge 时，前端依然可以
+// 通过该模拟对象完成所有数据交互，方便我们专注在界面与交互逻辑上。
+// -----------------------------------------------------------------------------
 function createDemoBridge() {
-    const seed = (prefix) => Array.from({ length: 8 }, (_, idx) => ({
-        id: idx + 1,
-        content: `${prefix} 示例注释 ${idx + 1}`,
-    }));
+    // 为每一种类型生成 8 条示例数据，确保展示区域看上去足够丰富。
+    const seed = (prefix) =>
+        Array.from({ length: 8 }, (_, idx) => ({
+            id: idx + 1,
+            content: `${prefix} 示例注释 ${idx + 1}`,
+        }));
 
     const demoTypes = [
         "R_Comment",
@@ -31,7 +37,8 @@ function createDemoBridge() {
     );
 
     const clone = (data) => JSON.parse(JSON.stringify(data));
-    const delay = (result, timeout = 320) => new Promise((resolve) => setTimeout(() => resolve(clone(result)), timeout));
+    const delay = (result, timeout = 320) =>
+        new Promise((resolve) => setTimeout(() => resolve(clone(result)), timeout));
 
     const ensureList = (value) => (Array.isArray(value) ? value : value ? [value] : []);
 
@@ -45,13 +52,17 @@ function createDemoBridge() {
         async queryByKeyword(type, keyword) {
             const list = store[type] || [];
             const lower = keyword.toLowerCase();
-            const matched = list.filter((item) => String(item.content).toLowerCase().includes(lower));
+            const matched = list.filter((item) =>
+                String(item.content).toLowerCase().includes(lower)
+            );
             return delay(matched);
         },
         async queryByIdRange(type, start, end) {
             const list = store[type] || [];
             const [s, e] = [Number(start), Number(end)];
-            const matched = list.filter((item) => Number(item.id) >= s && Number(item.id) <= e);
+            const matched = list.filter(
+                (item) => Number(item.id) >= s && Number(item.id) <= e
+            );
             return delay(matched);
         },
         async queryAll(type) {
@@ -105,7 +116,7 @@ createApp({
         const records = {};
         const typeStates = {};
         typeButtons.forEach((btn) => {
-            records[btn.value] = { items: [], original: [], source: "none" };
+            records[btn.value] = { items: [], original: [], source: "none", selected: [] };
             typeStates[btn.value] = "idle";
         });
 
@@ -124,7 +135,6 @@ createApp({
                 rangeStart: "",
                 rangeEnd: "",
             },
-            selectedRowIndex: null,
             loading: false,
             statusMessage: "请选择操作以加载或更新数据。",
             statusLevel: "info",
@@ -134,15 +144,14 @@ createApp({
         };
     },
     computed: {
+        // 当前选中类型对应的数据列表。
         currentItems() {
             return this.records[this.selectedType].items;
         },
         hasItems() {
             return this.currentItems.length > 0;
         },
-        hasSelection() {
-            return this.selectedRowIndex !== null && this.currentItems[this.selectedRowIndex];
-        },
+        // 只有当范围输入合法时才允许查询。
         canQueryRange() {
             const start = Number(this.search.rangeStart);
             const end = Number(this.search.rangeEnd);
@@ -158,10 +167,24 @@ createApp({
             }));
         },
         totalDisplayedCount() {
-            return this.displayedPanels.reduce((sum, panel) => sum + (panel.items?.length || 0), 0);
+            return this.displayedPanels.reduce(
+                (sum, panel) => sum + (panel.items?.length || 0),
+                0
+            );
+        },
+        // 记录用户勾选的总数量，便于控制批量操作按钮状态。
+        totalSelectedCount() {
+            return Object.values(this.records).reduce(
+                (sum, record) => sum + (record.selected?.length || 0),
+                0
+            );
+        },
+        hasSelection() {
+            return this.totalSelectedCount > 0;
         },
     },
     created() {
+        // 优先使用 Java 注入的真实桥接对象，若不存在则降级到演示数据。
         this.commentApi = window.CommentUIBridge ?? createDemoBridge();
         if (this.commentApi.__isDemo) {
             this.demoMode = true;
@@ -170,52 +193,61 @@ createApp({
         }
     },
     methods: {
-        setType(type) {
-            this.selectedType = type;
-            this.selectedRowIndex = null;
-        },
-        typeButtonClass(type) {
-            return [
-                "type-button",
-                this.selectedType === type ? "is-selected" : null,
-                this.typeStates[type] === "queried" ? "state-queried" : null,
-                this.typeStates[type] === "modified" ? "state-modified" : null,
-            ].filter(Boolean);
-        },
-        stateDescription(type) {
-            const state = this.typeStates[type];
-            if (state === "queried") return "数据已与服务器同步";
-            if (state === "modified") return "存在待上传的本地修改";
-            return "尚未加载数据";
-        },
-        selectRow(type, index) {
-            this.selectedType = type;
-            this.selectedRowIndex = index;
-        },
+        // ------------------------------------------------------------------
+        // 通用工具方法
+        // ------------------------------------------------------------------
         cloneItems(items) {
             return JSON.parse(JSON.stringify(items || []));
         },
-        applyServerRecords(type, items) {
-            const normalized = this.normalizeItems(items);
-            this.records[type].items = normalized;
-            this.records[type].original = this.cloneItems(normalized);
-            this.records[type].source = "server";
-            this.typeStates[type] = normalized.length ? "queried" : "idle";
-            if (type === this.selectedType) {
-                this.selectedRowIndex = null;
+        hasRecordDiff(record) {
+            if (!record) return false;
+            if (record.items.length !== record.original.length) {
+                return true;
             }
-            this.updateDisplayPanels(type);
+            return record.items.some(
+                (item, index) => item.content !== (record.original[index]?.content ?? "")
+            );
         },
-        applyLocalRecords(type, items) {
-            const normalized = this.normalizeItems(items);
-            this.records[type].items = normalized;
-            this.records[type].original = this.cloneItems(normalized);
-            this.records[type].source = "local";
-            this.typeStates[type] = normalized.length ? "modified" : "idle";
-            if (type === this.selectedType) {
-                this.selectedRowIndex = null;
+        determineState(type) {
+            const record = this.records[type];
+            if (!record || !record.items.length) return "idle";
+            if (record.source !== "server" || this.hasRecordDiff(record)) {
+                return "modified";
             }
-            this.updateDisplayPanels(type);
+            return "displayed";
+        },
+        refreshTypeStates() {
+            const visibleTypes = new Set(
+                this.displayPanels.map((panel) => panel.type).filter(Boolean)
+            );
+            this.typeButtons.forEach(({ value: type }) => {
+                if (visibleTypes.has(type)) {
+                    this.typeStates[type] = this.determineState(type);
+                } else {
+                    this.typeStates[type] = "idle";
+                    this.clearSelection(type);
+                }
+            });
+        },
+        clearSelection(type) {
+            if (type && this.records[type]) {
+                this.records[type].selected = [];
+            }
+        },
+        collectSelectedPayloads() {
+            const payload = {};
+            let total = 0;
+            Object.entries(this.records).forEach(([type, record]) => {
+                if (!record.selected.length) return;
+                const selectedItems = record.selected
+                    .map((key) => record.items.find((item) => String(item.id) === key))
+                    .filter(Boolean);
+                if (selectedItems.length) {
+                    payload[type] = this.cloneItems(selectedItems);
+                    total += selectedItems.length;
+                }
+            });
+            return { payload, total };
         },
         normalizeItems(items) {
             if (!items) return [];
@@ -226,22 +258,81 @@ createApp({
                     content: item.content ?? "",
                 }));
         },
+        applyServerRecords(type, items) {
+            const normalized = this.normalizeItems(items);
+            const record = this.records[type];
+            record.items = normalized;
+            record.original = this.cloneItems(normalized);
+            record.source = "server";
+            record.selected = [];
+            this.selectedType = type;
+            this.updateDisplayPanels(type);
+        },
+        applyLocalRecords(type, items) {
+            const normalized = this.normalizeItems(items);
+            const record = this.records[type];
+            record.items = normalized;
+            record.original = this.cloneItems(normalized);
+            record.source = "local";
+            record.selected = [];
+            this.selectedType = type;
+            this.updateDisplayPanels(type);
+        },
         handleContentChange(type) {
             const record = this.records[type];
             if (!record) return;
-            if (record.source === "local") {
-                this.typeStates[type] = record.items.length ? "modified" : "idle";
+            if (record.source === "server" && this.hasRecordDiff(record)) {
+                record.source = "edited";
+            }
+            if (!this.hasRecordDiff(record)) {
+                record.source = record.source === "local" ? "local" : "server";
+            }
+            this.refreshTypeStates();
+        },
+        // ------------------------------------------------------------------
+        // 类型选择与展示区逻辑
+        // ------------------------------------------------------------------
+        setType(type) {
+            this.selectedType = type;
+            const record = this.records[type];
+            if (record?.items?.length) {
+                this.updateDisplayPanels(type);
+            }
+        },
+        typeButtonClass(type) {
+            return [
+                "type-button",
+                this.selectedType === type ? "is-selected" : null,
+                this.typeStates[type] === "displayed" ? "state-displayed" : null,
+                this.typeStates[type] === "modified" ? "state-modified" : null,
+            ].filter(Boolean);
+        },
+        stateDescription(type) {
+            const state = this.typeStates[type];
+            if (state === "displayed") return "数据已显示在面板中";
+            if (state === "modified") return "存在待上传的本地修改";
+            return "尚未加载数据";
+        },
+        selectRow(type) {
+            this.selectedType = type;
+        },
+        isRowSelected(type, itemId) {
+            const record = this.records[type];
+            if (!record) return false;
+            return record.selected.includes(String(itemId));
+        },
+        togglePanelSelection(type) {
+            if (!type) return;
+            const record = this.records[type];
+            if (!record) return;
+            if (!record.items.length) {
+                record.selected = [];
                 return;
             }
-            const { items, original } = record;
-            const hasDiff =
-                items.length !== original.length ||
-                items.some((item, index) => item.content !== (original[index] ? original[index].content : undefined));
-            this.typeStates[type] = hasDiff ? "modified" : record.items.length ? "queried" : "idle";
-        },
-        panelState(type) {
-            if (!type) return "idle";
-            return this.typeStates[type] ?? "idle";
+            const allSelected = record.selected.length === record.items.length;
+            record.selected = allSelected
+                ? []
+                : record.items.map((item) => String(item.id));
         },
         isPanelEditable(type) {
             return type && type === this.selectedType;
@@ -251,33 +342,47 @@ createApp({
             const currentPrimary = this.displayPanels[0];
             if (currentPrimary?.type === type) {
                 this.displayPanels.splice(0, 1, { type });
+                this.refreshTypeStates();
                 return;
             }
             const newPrimary = { type };
-            const fallbackSecondary = this.displayPanels[0]?.type ? { type: this.displayPanels[0].type } : { type: null };
+            const fallbackSecondary = this.displayPanels[0]?.type
+                ? { type: this.displayPanels[0].type }
+                : { type: null };
             if (this.displayPanels[1]?.type === type) {
-                // move secondary to primary and keep the previous primary as secondary
-                const previousPrimary = this.displayPanels[0]?.type ? { type: this.displayPanels[0].type } : { type: null };
+                const previousPrimary = this.displayPanels[0]?.type
+                    ? { type: this.displayPanels[0].type }
+                    : { type: null };
                 this.displayPanels.splice(0, 1, newPrimary);
                 this.displayPanels.splice(1, 1, previousPrimary);
+                this.refreshTypeStates();
                 return;
             }
             this.displayPanels.splice(1, 1, fallbackSecondary);
             this.displayPanels.splice(0, 1, newPrimary);
+            this.refreshTypeStates();
+        },
+        panelState(type) {
+            if (!type) return "idle";
+            return this.typeStates[type] ?? "idle";
         },
         clearDisplay() {
             this.displayPanels.forEach((panel) => {
                 if (panel.type && this.records[panel.type]) {
-                    this.records[panel.type].items = [];
-                    this.records[panel.type].original = [];
-                    this.records[panel.type].source = "none";
-                    this.typeStates[panel.type] = "idle";
+                    const record = this.records[panel.type];
+                    record.items = [];
+                    record.original = [];
+                    record.source = "none";
+                    record.selected = [];
                 }
             });
             this.displayPanels.splice(0, 2, { type: null }, { type: null });
-            this.selectedRowIndex = null;
+            this.refreshTypeStates();
             this.setStatus("已清空展示区域内容。", "info");
         },
+        // ------------------------------------------------------------------
+        // 查询相关操作
+        // ------------------------------------------------------------------
         async queryById() {
             const id = this.search.singleId.trim();
             if (!id) {
@@ -297,9 +402,15 @@ createApp({
                 return;
             }
             await this.runAsync(async () => {
-                const response = await this.commentApi.queryByKeyword(this.selectedType, keyword);
+                const response = await this.commentApi.queryByKeyword(
+                    this.selectedType,
+                    keyword
+                );
                 this.applyServerRecords(this.selectedType, response);
-                this.setStatus(`已获取包含 “${keyword}” 的结果，共 ${this.currentItems.length} 条。`, "success");
+                this.setStatus(
+                    `已获取包含 “${keyword}” 的结果，共 ${this.currentItems.length} 条。`,
+                    "success"
+                );
             });
         },
         async queryByRange() {
@@ -309,7 +420,11 @@ createApp({
             }
             const { rangeStart, rangeEnd } = this.search;
             await this.runAsync(async () => {
-                const response = await this.commentApi.queryByIdRange(this.selectedType, rangeStart, rangeEnd);
+                const response = await this.commentApi.queryByIdRange(
+                    this.selectedType,
+                    rangeStart,
+                    rangeEnd
+                );
                 this.applyServerRecords(this.selectedType, response);
                 this.setStatus(`已获取 ID ${rangeStart} - ${rangeEnd} 区间的结果。`, "success");
             });
@@ -321,53 +436,60 @@ createApp({
                 this.setStatus(`已加载 ${this.selectedType} 类型的全部数据。`, "success");
             });
         },
-        async updateSingle() {
-            if (!this.hasSelection) {
-                this.setStatus("请先选择一条记录。", "error");
+        // ------------------------------------------------------------------
+        // 上传与本地文件操作
+        // ------------------------------------------------------------------
+        async uploadSelected() {
+            const { payload, total } = this.collectSelectedPayloads();
+            if (!total) {
+                this.setStatus("请至少勾选一条需要上传的记录。", "error");
                 return;
             }
-            const record = this.records[this.selectedType];
-            const payload = record.items[this.selectedRowIndex];
             await this.runAsync(async () => {
-                await this.commentApi.updateComment(this.selectedType, payload);
-                record.original[this.selectedRowIndex] = this.cloneItems([payload])[0];
-                record.source = "server";
-                this.handleContentChange(this.selectedType);
-                this.setStatus(`已更新 ID ${payload.id} 的注释至服务器。`, "success");
-            });
-        },
-        async updateAll() {
-            if (!this.hasItems) {
-                this.setStatus("暂无数据可上传。", "error");
-                return;
-            }
-            const record = this.records[this.selectedType];
-            await this.runAsync(async () => {
-                await this.commentApi.updateAll(this.selectedType, record.items);
-                record.original = this.cloneItems(record.items);
-                record.source = "server";
-                this.typeStates[this.selectedType] = record.items.length ? "queried" : "idle";
-                this.setStatus("已将当前列表全部上传至服务器。", "success");
+                for (const [type, items] of Object.entries(payload)) {
+                    await this.commentApi.updateAll(type, items);
+                    const record = this.records[type];
+                    const uploadedIds = new Set(items.map((item) => String(item.id)));
+                    items.forEach((item) => {
+                        const index = record.items.findIndex(
+                            (candidate) => String(candidate.id) === String(item.id)
+                        );
+                        if (index >= 0) {
+                            record.original[index] = this.cloneItems([record.items[index]])[0];
+                        }
+                    });
+                    if (record.source === "local") {
+                        const uploadedAll =
+                            record.items.length > 0 && uploadedIds.size === record.items.length;
+                        record.source = uploadedAll ? "server" : "local";
+                    } else {
+                        record.source = this.hasRecordDiff(record) ? "edited" : "server";
+                    }
+                }
+                this.refreshTypeStates();
+                this.setStatus(`已将 ${total} 条记录上传到机器人。`, "success");
             });
         },
         saveToLocal() {
-            if (!this.hasItems) {
-                this.setStatus("暂无数据可保存。", "error");
+            const { payload, total } = this.collectSelectedPayloads();
+            if (!total) {
+                this.setStatus("请至少勾选一条需要保存的记录。", "error");
                 return;
             }
             const data = {
-                type: this.selectedType,
                 exportedAt: new Date().toISOString(),
-                records: this.currentItems,
+                types: payload,
             };
-            const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
+            const blob = new Blob([JSON.stringify(data, null, 2)], {
+                type: "application/json",
+            });
             const url = URL.createObjectURL(blob);
             const a = document.createElement("a");
             a.href = url;
-            a.download = `${this.selectedType.toLowerCase()}-comments.json`;
+            a.download = "fanuc-comments-selection.json";
             a.click();
             URL.revokeObjectURL(url);
-            this.setStatus("已保存至本地 JSON 文件。", "success");
+            this.setStatus(`已保存 ${total} 条记录到本地文件。`, "success");
         },
         loadFromLocal() {
             const input = this.$refs.fileInput;
@@ -378,16 +500,32 @@ createApp({
         },
         handleLocalFile(event) {
             const [file] = event.target.files || [];
-            if (!file) {
-                return;
-            }
+            if (!file) return;
             const reader = new FileReader();
             reader.onload = () => {
                 try {
                     const parsed = JSON.parse(reader.result);
-                    const records = Array.isArray(parsed) ? parsed : parsed.records;
-                    this.applyLocalRecords(this.selectedType, records);
-                    this.setStatus(`已从本地文件加载 ${records?.length ?? 0} 条数据。`, "success");
+                    let loaded = 0;
+                    if (Array.isArray(parsed)) {
+                        this.applyLocalRecords(this.selectedType, parsed);
+                        loaded = parsed.length;
+                    } else if (parsed?.types && typeof parsed.types === "object") {
+                        Object.entries(parsed.types).forEach(([type, list]) => {
+                            if (this.records[type]) {
+                                this.applyLocalRecords(type, list);
+                                loaded += Array.isArray(list) ? list.length : 0;
+                            }
+                        });
+                    } else {
+                        const targetType =
+                            parsed?.type && this.records[parsed.type]
+                                ? parsed.type
+                                : this.selectedType;
+                        const list = Array.isArray(parsed?.records) ? parsed.records : [];
+                        this.applyLocalRecords(targetType, list);
+                        loaded = list.length;
+                    }
+                    this.setStatus(`已从本地文件加载 ${loaded} 条数据。`, "success");
                 } catch (error) {
                     console.error(error);
                     this.setStatus("文件解析失败，请检查 JSON 格式。", "error");
@@ -398,6 +536,9 @@ createApp({
             };
             reader.readAsText(file, "utf-8");
         },
+        // ------------------------------------------------------------------
+        // 统一的状态显示与异步执行封装
+        // ------------------------------------------------------------------
         setStatus(message, level = "info") {
             this.statusMessage = message;
             this.statusLevel = level;
@@ -409,7 +550,10 @@ createApp({
                 await task();
             } catch (error) {
                 console.error(error);
-                this.setStatus(error?.message ?? "操作执行失败，请检查控制台日志。", "error");
+                this.setStatus(
+                    error?.message ?? "操作执行失败，请检查控制台日志。",
+                    "error"
+                );
             } finally {
                 this.loading = false;
             }

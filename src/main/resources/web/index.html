@@ -19,10 +19,11 @@
                 <span v-if="demoMode" class="demo-badge">演示数据</span>
             </header>
 
+            <!-- 类型选择：指示当前展示、修改状态的按钮列表 -->
             <section class="type-section card">
                 <div class="section-heading">
                     <h2>类型选择</h2>
-                    <p class="legend">绿色代表已从服务器查询，黄色代表有待提交的修改。</p>
+                    <p class="legend">绿色表示当前面板展示的类型，黄色表示内容已修改但尚未上传。</p>
                 </div>
                 <div class="type-buttons">
                     <button
@@ -38,66 +39,10 @@
             </section>
 
             <section class="content-grid">
-                <div class="card display-card">
-                    <div class="display-header">
-                        <h2>展示区域</h2>
-                        <div class="display-actions">
-                            <button class="ghost" :disabled="!totalDisplayedCount" @click="clearDisplay">清除展示</button>
-                            <span class="badge" :class="['state-' + (typeStates[selectedType] || 'idle')]">
-                                {{ stateDescription(selectedType) }}
-                            </span>
-                            <span class="record-count">当前共 {{ totalDisplayedCount }} 条记录</span>
-                        </div>
-                    </div>
-
-                    <div class="display-columns">
-                        <div class="display-panel" v-for="(panel, index) in displayedPanels" :key="index">
-                            <div class="panel-header">
-                                <div class="panel-title">{{ panel.type || '空' }}</div>
-                                <span class="badge" :class="['panel-state', 'state-' + panelState(panel.type)]">
-                                    {{ panel.type ? stateDescription(panel.type) : '暂无数据' }}
-                                </span>
-                            </div>
-                            <div class="table-wrapper">
-                                <template v-if="panel.type">
-                                    <div v-if="panel.items.length" class="table-scroll">
-                                        <table>
-                                            <thead>
-                                                <tr>
-                                                    <th class="id-col">索引 ID</th>
-                                                    <th>内容 Content</th>
-                                                </tr>
-                                            </thead>
-                                            <tbody>
-                                                <tr
-                                                    v-for="(item, rowIndex) in panel.items"
-                                                    :key="item.id ?? rowIndex"
-                                                    :class="{ selected: panel.type === selectedType && rowIndex === selectedRowIndex }"
-                                                    @click="selectRow(panel.type, rowIndex)"
-                                                >
-                                                    <td class="id-col">{{ item.id }}</td>
-                                                    <td>
-                                                        <textarea
-                                                            v-model="item.content"
-                                                            :readonly="!isPanelEditable(panel.type)"
-                                                            @input="handleContentChange(panel.type)"
-                                                            placeholder="在此处编辑注释内容"
-                                                        ></textarea>
-                                                    </td>
-                                                </tr>
-                                            </tbody>
-                                        </table>
-                                    </div>
-                                    <div v-else class="panel-empty">暂无数据，请使用操作面板加载内容。</div>
-                                </template>
-                                <div v-else class="panel-empty">尚未加载任何类型的数据。</div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
+                <!-- 操作面板：集中放置查询、上传与本地文件操作 -->
                 <div class="card operations-card">
                     <h2>操作面板</h2>
+
                     <div class="operation-item">
                         <label for="searchId">按 ID 索引查询</label>
                         <div class="operation-inputs">
@@ -124,32 +69,88 @@
                         </div>
                     </div>
 
-                    <div class="operation-item">
-                        <label>查询该类型所有内容</label>
-                        <button class="primary full-width" :disabled="loading" @click="queryAll">开始查询</button>
-                    </div>
-
                     <hr />
 
-                    <div class="operation-item">
-                        <label>更新单个内容到服务器</label>
-                        <button class="accent full-width" :disabled="!hasSelection || loading" @click="updateSingle">上传当前选中项</button>
+                    <button class="primary solid" :disabled="loading" @click="queryAll">查询该类型所有数据</button>
+                    <button class="accent solid" :disabled="!hasSelection || loading" @click="uploadSelected">上传当前选中项到机器人</button>
+                    <button class="secondary solid" :disabled="!hasSelection || loading" @click="saveToLocal">将所选项保存成 *.json 文件</button>
+                    <button class="secondary outline" :disabled="loading" @click="loadFromLocal">通过本地 *.json 加载</button>
+                    <input ref="fileInput" type="file" accept="application/json" @change="handleLocalFile" hidden />
+                </div>
+
+                <!-- 展示区域：左右两栏显示最新与上一条操作的结果 -->
+                <div class="card display-card">
+                    <div class="display-header">
+                        <h2>展示区域</h2>
+                        <div class="display-actions">
+                            <button class="ghost" :disabled="!totalDisplayedCount" @click="clearDisplay">清除展示</button>
+                            <span class="badge" :class="['state-' + (typeStates[selectedType] || 'idle')]">
+                                {{ stateDescription(selectedType) }}
+                            </span>
+                            <span class="record-count">当前共 {{ totalDisplayedCount }} 条记录，已选中 {{ totalSelectedCount }} 条</span>
+                        </div>
                     </div>
 
-                    <div class="operation-item">
-                        <label>更新所有内容到服务器</label>
-                        <button class="accent full-width" :disabled="!hasItems || loading" @click="updateAll">批量上传</button>
-                    </div>
-
-                    <div class="operation-item">
-                        <label>保存至本地</label>
-                        <button class="secondary full-width" :disabled="!hasItems || loading" @click="saveToLocal">保存至本地</button>
-                    </div>
-
-                    <div class="operation-item">
-                        <label>通过本地 '*.json' 文件加载</label>
-                        <button class="secondary full-width" :disabled="loading" @click="loadFromLocal">通过本地 '*.json' 文件加载</button>
-                        <input ref="fileInput" type="file" accept="application/json" @change="handleLocalFile" hidden />
+                    <div class="display-columns">
+                        <div class="display-panel" v-for="(panel, index) in displayedPanels" :key="index">
+                            <div class="panel-header">
+                                <button
+                                    class="panel-title-button"
+                                    :disabled="!panel.type"
+                                    :class="{ active: panel.type && records[panel.type].selected.length && records[panel.type].selected.length === records[panel.type].items.length }"
+                                    @click="togglePanelSelection(panel.type)"
+                                >
+                                    {{ panel.type || '空' }}
+                                </button>
+                                <span class="badge" :class="['panel-state', 'state-' + panelState(panel.type)]">
+                                    {{ panel.type ? stateDescription(panel.type) : '暂无数据' }}
+                                </span>
+                            </div>
+                            <div class="table-wrapper">
+                                <template v-if="panel.type">
+                                    <div v-if="panel.items.length" class="table-scroll">
+                                        <table>
+                                            <thead>
+                                                <tr>
+                                                    <th class="select-col">选择</th>
+                                                    <th class="id-col">索引 ID</th>
+                                                    <th>内容 Content</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody>
+                                                <tr
+                                                    v-for="(item, rowIndex) in panel.items"
+                                                    :key="item.id ?? rowIndex"
+                                                    :class="{ selected: isRowSelected(panel.type, item.id) }"
+                                                    @click="selectRow(panel.type)"
+                                                >
+                                                    <td class="select-col">
+                                                        <input
+                                                            type="checkbox"
+                                                            :value="String(item.id)"
+                                                            v-model="records[panel.type].selected"
+                                                            @change.stop="selectRow(panel.type)"
+                                                        />
+                                                    </td>
+                                                    <td class="id-col">{{ item.id }}</td>
+                                                    <td>
+                                                        <textarea
+                                                            v-model="item.content"
+                                                            :readonly="!isPanelEditable(panel.type)"
+                                                            @input="handleContentChange(panel.type)"
+                                                            @focus="selectRow(panel.type)"
+                                                            placeholder="在此处编辑注释内容"
+                                                        ></textarea>
+                                                    </td>
+                                                </tr>
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                    <div v-else class="panel-empty">暂无数据，请使用操作面板加载内容。</div>
+                                </template>
+                                <div v-else class="panel-empty">尚未加载任何类型的数据。</div>
+                            </div>
+                        </div>
                     </div>
                 </div>
             </section>
