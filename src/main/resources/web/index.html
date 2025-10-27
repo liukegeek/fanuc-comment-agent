@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Fanuc 注释管理控制台</title>
+    <link rel="stylesheet" href="./styles.css" />
+    <script src="https://unpkg.com/vue@3.4.27/dist/vue.global.prod.js" defer></script>
+    <script src="./app.js" type="module" defer></script>
+</head>
+<body>
+    <div id="app">
+        <div class="app-shell" v-cloak>
+            <header class="app-header">
+                <div>
+                    <h1>Fanuc 注释管理控制台</h1>
+                    <p class="subtitle">跨平台、本地运行的可视化管理界面</p>
+                </div>
+                <span v-if="demoMode" class="demo-badge">演示数据</span>
+            </header>
+
+            <section class="type-section card">
+                <div class="section-heading">
+                    <h2>类型选择</h2>
+                    <p class="legend">绿色代表已从服务器查询，黄色代表有待提交的修改。</p>
+                </div>
+                <div class="type-buttons">
+                    <button
+                        v-for="type in typeButtons"
+                        :key="type.value"
+                        :class="typeButtonClass(type.value)"
+                        @click="setType(type.value)"
+                    >
+                        {{ type.label }}
+                    </button>
+                </div>
+            </section>
+
+            <section class="content-grid">
+                <div class="card operations-card">
+                    <h2>操作面板</h2>
+                    <div class="operation-item">
+                        <label for="searchId">按 ID 索引查询</label>
+                        <div class="operation-inputs">
+                            <input id="searchId" type="number" min="0" v-model="search.singleId" placeholder="输入 ID" />
+                            <button class="primary" :disabled="!search.singleId || loading" @click="queryById">查询</button>
+                        </div>
+                    </div>
+
+                    <div class="operation-item">
+                        <label for="searchKeyword">按关键字查询</label>
+                        <div class="operation-inputs">
+                            <input id="searchKeyword" type="text" v-model="search.keyword" placeholder="输入关键字" />
+                            <button class="primary" :disabled="!search.keyword || loading" @click="queryByKeyword">查询</button>
+                        </div>
+                    </div>
+
+                    <div class="operation-item">
+                        <label>按 ID 范围查询</label>
+                        <div class="operation-inputs range">
+                            <input type="number" min="0" v-model="search.rangeStart" placeholder="起始 ID" />
+                            <span class="range-divider">至</span>
+                            <input type="number" min="0" v-model="search.rangeEnd" placeholder="结束 ID" />
+                            <button class="primary" :disabled="!canQueryRange || loading" @click="queryByRange">查询</button>
+                        </div>
+                    </div>
+
+                    <div class="operation-item">
+                        <label>查询该类型所有内容</label>
+                        <button class="primary full-width" :disabled="loading" @click="queryAll">开始查询</button>
+                    </div>
+
+                    <hr />
+
+                    <div class="operation-item">
+                        <label>更新单个内容到服务器</label>
+                        <button class="accent full-width" :disabled="!hasSelection || loading" @click="updateSingle">上传当前选中项</button>
+                    </div>
+
+                    <div class="operation-item">
+                        <label>更新所有内容到服务器</label>
+                        <button class="accent full-width" :disabled="!hasItems || loading" @click="updateAll">批量上传</button>
+                    </div>
+
+                    <div class="operation-item">
+                        <label>将内容保存到本地</label>
+                        <button class="secondary full-width" :disabled="!hasItems || loading" @click="saveToLocal">保存为 JSON</button>
+                    </div>
+
+                    <div class="operation-item">
+                        <label>从本地文件加载内容</label>
+                        <button class="secondary full-width" :disabled="loading" @click="loadFromLocal">选择 JSON 文件</button>
+                        <input ref="fileInput" type="file" accept="application/json" @change="handleLocalFile" hidden />
+                    </div>
+                </div>
+
+                <div class="card display-card">
+                    <div class="display-header">
+                        <h2>展示区域</h2>
+                        <div class="display-actions">
+                            <span class="badge" :class="['state-' + (typeStates[selectedType] || 'idle')]">
+                                {{ stateDescription(selectedType) }}
+                            </span>
+                            <span class="record-count">当前共 {{ currentItems.length }} 条记录</span>
+                        </div>
+                    </div>
+
+                    <div class="table-wrapper">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th class="id-col">索引 ID</th>
+                                    <th>内容 Content</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr
+                                    v-for="(item, index) in currentItems"
+                                    :key="item.id ?? index"
+                                    :class="{ selected: index === selectedRowIndex }"
+                                    @click="selectRow(index)"
+                                >
+                                    <td class="id-col">{{ item.id }}</td>
+                                    <td>
+                                        <textarea
+                                            v-model="item.content"
+                                            @input="handleContentChange"
+                                            placeholder="在此处编辑注释内容"
+                                        ></textarea>
+                                    </td>
+                                </tr>
+                                <tr v-if="!currentItems.length">
+                                    <td colspan="2" class="empty">暂无数据，请使用左侧操作按钮加载内容。</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </section>
+
+            <footer class="status-bar">
+                <div :class="['status-message', statusLevel]">{{ statusMessage }}</div>
+                <div class="status-extra" v-if="statusTimestamp">更新时间：{{ statusTimestamp }}</div>
+            </footer>
+        </div>
+
+        <div class="loading-overlay" v-if="loading">
+            <div class="spinner"></div>
+            <p>正在处理，请稍候…</p>
+        </div>
+    </div>
+</body>
+</html>
