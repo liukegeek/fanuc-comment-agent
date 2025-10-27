@@ -18,7 +18,6 @@ module FanucHelper {
     requires java.desktop;
 
     exports com.byd.tools.connect;
-    exports com.byd.tools.control;
     exports com.byd.tools.exceptions;
     exports com.byd.tools.pojo;
     exports com.byd.tools.service;
