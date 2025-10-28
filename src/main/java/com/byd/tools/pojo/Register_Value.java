@@ -5,16 +5,14 @@ import com.google.gson.annotations.SerializedName;
 import java.util.Objects;
 
 /**
- * ClassName: FanucComment
+ * ClassName: Register_Value
  * Package: com.byd.tools.pojo
  * Description:
- * 用来包装一行长文本信息的类,包括:编号(id)、内容(content)、类型(type)
- * 例如： 对于 数字量输出信号289，其长文本内容为：水复位，那么用该类包装即为 Comment(289,"水复位",DI)
  * Author: LiuKe
- * Create: 2025/4/16 21:46
+ * Create: 2025/10/28 08:52
  * Version 1.0
  */
-public class Comment {
+public class Register_Value extends Comment {
     //注解用来指明，通过Gson将对象序列化成json文件时，key的内容。 如果不使用注解则默认为属性名称(field name)。
     @SerializedName("编号")
     private int id;
@@ -23,15 +21,15 @@ public class Comment {
     @SerializedName("类型")
     private CommentType type;
 
-    public Comment() {
+    public Register_Value() {
     }
 
-    public Comment(int id, String content) {
+    public Register_Value(int id, String content) {
         this.id = id;
         this.content = content;
     }
 
-    public Comment(int id, String content, CommentType type) {
+    public Register_Value(int id, String content, CommentType type) {
         this.id = id;
         this.content = content;
         this.type = type;
@@ -74,7 +72,8 @@ public class Comment {
     public boolean equals(Object o) {
         if (this == o) return true;
         if (o == null || getClass() != o.getClass()) return false;
-        Comment that = (Comment) o;
-        return id == that.id && Objects.equals(content, that.content);
+        Register_Value that = (Register_Value) o;
+        return id == that.getId() && Objects.equals(content, that.getContent());
     }
+
 }
