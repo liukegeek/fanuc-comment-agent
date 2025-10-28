@@ -1,0 +1,7 @@
+server:
+  port: 8910
+
+spring:
+  mvc:
+    # 如果你把前端静态文件放在 resources/static 下，这个保持默认即可
+    static-path-pattern: "/**"

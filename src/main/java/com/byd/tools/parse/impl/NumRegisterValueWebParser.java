@@ -66,6 +66,8 @@ public class NumRegisterValueWebParser extends BaseWebParser {
             //表单第一行，为列的名字，故而进行去除
             trs.removeFirst();
 
+
+
             trs.forEach(
                     tr -> {
                         String numRegisterValueName = tr.select("td").get(2).select("input").first().attr("name");
