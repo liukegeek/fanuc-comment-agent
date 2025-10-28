@@ -40,14 +40,15 @@ public class BaseWebParser implements KarelWebParser {
     @Override
     public String generateWritePara(CommentType type, int id, String value, String charset) {
         if (type == null) {
-            System.out.println("未明确要提交的数据的类型");
+            System.out.println("未明确要提交的数据的类型");   //不存在的类型，返回null。
+            throw new RuntimeException("type为空");
         }
         String commentTypeCode = switch (type) {
             case NUM_REGISTER_COMMENT -> "1";
-            case NUM_REGISTER_VALUE -> "2";
+            case NUM_REGISTER_VALUE -> null;    //用于寄存器值修改的参数格式与注释修改不同，故而需要子类覆写这个方法。
             case POSITION_REGISTER -> "3";
             case STRING_REGISTER_COMMENT -> "14";
-            case STRING_REGISTER_VALUE -> "15";
+            case STRING_REGISTER_VALUE -> null; //用于寄存器值修改的参数格式与注释修改不同，故而需要子类覆写这个方法。
             case RI -> "6";
             case RO -> "7";
             case DI -> "8";
@@ -57,8 +58,12 @@ public class BaseWebParser implements KarelWebParser {
             case AI -> "12";
             case AO -> "13";
             case FLAG -> "77"; //需验证
-            case null -> "null";
         };
+
+        if (commentTypeCode == null) {
+            System.out.println("未明确要提交的数据的类型的代码");   //不存在的类型，返回null。
+            throw new RuntimeException("type为不存在的CommentType类型");
+        }
 
         try {
             String sComment = URLEncoder.encode(value, charset);

@@ -1,6 +1,7 @@
-package com.byd.tools.parse;
+package com.byd.tools.parse.impl;
 
 import com.byd.tools.exceptions.ParseFailedException;
+import com.byd.tools.parse.BaseWebParser;
 import com.byd.tools.pojo.Comment;
 import com.byd.tools.pojo.CommentType;
 import org.jsoup.Jsoup;
@@ -25,7 +26,6 @@ import java.util.List;
 public class DoWebParser extends BaseWebParser {
     @Override
     public List<Comment> parseDataFromHtml(InputStream sourceInputStream, String charset, String sourceUrl) throws IOException {
-        //logger.info("进入DoWebParser对象的getDigitalComments程序");
         List<Comment> commentList = new ArrayList<>();
 
         try {
@@ -40,32 +40,18 @@ public class DoWebParser extends BaseWebParser {
             //筛选出存有长文本信息的表单所包含的所有行:trs
             Elements trs = tbody.select("tr");
 
-            //表单第一行，为列的名字，故而进行去除
-            Element column = trs.removeFirst();
-//
-//            StringBuilder colName = new StringBuilder();
-//            column.select("td").forEach(td -> {
-//                colName.append(td.text()).append("\t\t");
-//            });
-//            logger.info("已执行parseHtml程序对输入流进行解析，当前读取以下列的信息");
-//            logger.info(colName);
-//            System.out.println("当前读取以下列的信息:");
-//            System.out.println(colName);
+            //表单第一行，为表格中每一列的名字，故而进行去除
+            trs.removeFirst();
 
-
-            //对剩下的每一行都进行拆解，并构造Comment对象用来保存，通过清洗所整理出来的长文本信息。
-            //logger.info("对剩下的每一行都进行拆解，并构造Comment对象用来保存，通过清洗所整理出来的长文本信息。");
             trs.forEach(
                     tr -> {
+                        //该类型的td共有4个，分别存储：DI编号、DI注释、DO编号、DO注释。 其中DI注释一栏既能体现编号，如name=strComment7，也存有注释，如value=报警复位，我们直接解析该栏的name和value即可。
                         //name格式为:strComment1、strComment2、strComment3 等，后面的数字代表该注释的ID，因此截掉前10个字符，得到的字符串就是ID编号
                         String doCommentName = tr.select("td").get(3).select("input").first().attr("name");
                         String doCommentValue = tr.select("td").get(3).select("input").first().attr("value");
                         Comment doComment = new Comment(Integer.parseInt(doCommentName.substring(10)), doCommentValue);
                         doComment.setType(CommentType.DO); //设置长文本类型为，DO类型
                         commentList.add(doComment);
-//                        doComment.setComment("");  //用于制造空的长文本
-
-//                        logger.info("构建一个doComment,id:" + doComment.getId());
                     }
             );
         } catch (IOException | NullPointerException e) {
