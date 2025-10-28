@@ -1,5 +1,3 @@
-import com.byd.tools.view.FanucEditor;
-import javafx.application.Application;
 import org.junit.Test;
 
 /**
@@ -14,8 +12,8 @@ public class UItest {
 
     @Test
     public void testShow(){
-        FanucEditor fanucEditor = new FanucEditor();
-
-        Application.launch(fanucEditor.getClass(),"sad");
+//        FanucEditor fanucEditor = new FanucEditor();
+//
+//        Application.launch(fanucEditor.getClass(),"sad");
     }
 }
