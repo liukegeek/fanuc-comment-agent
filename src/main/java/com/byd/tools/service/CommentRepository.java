@@ -6,6 +6,7 @@ import com.byd.tools.pojo.Comment;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.reflect.TypeToken;
+import org.springframework.stereotype.Component;
 
 import java.io.FileReader;
 import java.io.FileWriter;
@@ -26,6 +27,7 @@ import java.util.List;
  * Create: 2025/4/20 19:13
  * Version 1.0
  */
+@Component
 public class CommentRepository {
 
     /**

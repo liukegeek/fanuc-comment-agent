@@ -75,7 +75,6 @@
                     <button class="accent solid" :disabled="!hasSelection || loading" @click="uploadSelected">上传当前选中项到机器人</button>
                     <button class="secondary solid" :disabled="!hasSelection || loading" @click="saveToLocal">将所选项保存成 *.json 文件</button>
                     <button class="secondary outline" :disabled="loading" @click="loadFromLocal">通过本地 *.json 加载</button>
-                    <input ref="fileInput" type="file" accept="application/json" @change="handleLocalFile" hidden />
                 </div>
 
                 <!-- 展示区域：左右两栏显示最新与上一条操作的结果 -->
