@@ -1,11 +1,6 @@
 package com.byd.tools.api;
 
-import com.byd.tools.api.dto.CommentBatchRequest;
-import com.byd.tools.api.dto.CommentPayload;
-import com.byd.tools.api.dto.LocalLoadRequest;
-import com.byd.tools.api.dto.LocalLoadResponse;
-import com.byd.tools.api.dto.LocalSaveRequest;
-import com.byd.tools.api.dto.OperationStatusResponse;
+import com.byd.tools.api.dto.*;
 import com.byd.tools.exceptions.ConnectFailedException;
 import com.byd.tools.exceptions.InvalidParaException;
 import com.byd.tools.exceptions.JsonFileIOException;
@@ -76,9 +71,9 @@ public class CommentController {
         return Map.of("ok", true);
     }
 
-    @GetMapping("/comments/{type}/id/{id}")
-    public ResponseEntity<List<Comment>> queryById(@PathVariable String type,
-                                                   @PathVariable int id) {
+    @GetMapping("/comments/queryById")
+    public ResponseEntity<List<Comment>> queryById(@RequestParam("type") @NotBlank String type,
+                                                   @RequestParam("id") @NotBlank int id) {
         CommentType commentType = resolveCommentType(type);
         Optional<CommentService> service = commentService();
         if (service.isEmpty()) {
@@ -89,36 +84,30 @@ public class CommentController {
             if (comment == null) {
                 return ResponseEntity.ok(Collections.emptyList());
             }
-            comment.setType(commentType);
             return ResponseEntity.ok(List.of(comment));
         } catch (ConnectFailedException | InvalidParaException ex) {
             throw translateException(ex);
         }
     }
 
-    @GetMapping("/comments/{type}/keyword")
-    public ResponseEntity<List<Comment>> queryByKeyword(@PathVariable String type,
-                                                        @RequestParam @NotBlank String keyword) {
+    @GetMapping("/comments/queryByKeyWord")
+    public ResponseEntity<List<Comment>> queryByKeyword(@RequestParam("type") @NotBlank String type,
+                                                        @RequestParam("keyword") @NotBlank String keyword) {
         CommentType commentType = resolveCommentType(type);
         Optional<CommentService> service = commentService();
         if (service.isEmpty()) {
             return ResponseEntity.ok(Collections.emptyList());
         }
         try {
-            List<Comment> comments = service.get().queryByKeyword(keyword, commentType);
-            comments.forEach(comment -> {
-                if (comment.getType() == null) {
-                    comment.setType(commentType);
-                }
-            });
-            return ResponseEntity.ok(comments);
+            List<Comment> commentList = service.get().queryByKeyword(keyword, commentType);
+            return ResponseEntity.ok(commentList);
         } catch (ConnectFailedException | InvalidParaException ex) {
             throw translateException(ex);
         }
     }
 
-    @GetMapping("/comments/{type}/range")
-    public ResponseEntity<List<Comment>> queryByRange(@PathVariable String type,
+    @GetMapping("/comments/queryByIdRange")
+    public ResponseEntity<List<Comment>> queryByRange(@RequestParam("type") @NotBlank String type,
                                                       @RequestParam("start") int start,
                                                       @RequestParam("end") int end) {
         CommentType commentType = resolveCommentType(type);
@@ -127,52 +116,50 @@ public class CommentController {
             return ResponseEntity.ok(Collections.emptyList());
         }
         try {
-            List<Comment> comments = service.get().queryByIdRange(start, end, commentType);
-            comments.forEach(comment -> {
-                if (comment.getType() == null) {
-                    comment.setType(commentType);
-                }
-            });
-            return ResponseEntity.ok(comments);
+            List<Comment> commentList = service.get().queryByIdRange(start, end, commentType);
+            return ResponseEntity.ok(commentList);
         } catch (ConnectFailedException | InvalidParaException ex) {
             throw translateException(ex);
         }
     }
 
-    @GetMapping("/comments/{type}")
-    public ResponseEntity<List<Comment>> queryAll(@PathVariable String type) {
+    @GetMapping("/comments/queryAll")
+    public ResponseEntity<List<Comment>> queryAll(@RequestParam("type") @NotBlank String type) {
         CommentType commentType = resolveCommentType(type);
         Optional<CommentService> service = commentService();
         if (service.isEmpty()) {
             return ResponseEntity.ok(Collections.emptyList());
         }
         try {
-            List<Comment> comments = service.get().queryAllFromServer(commentType);
-            comments.forEach(comment -> {
-                if (comment.getType() == null) {
-                    comment.setType(commentType);
-                }
-            });
-            return ResponseEntity.ok(comments);
+            List<Comment> commentList = service.get().queryAllFromServer(commentType);
+            return ResponseEntity.ok(commentList);
         } catch (ConnectFailedException | InvalidParaException ex) {
             throw translateException(ex);
         }
     }
 
-    @PostMapping("/comments/{type}/batch")
-    public ResponseEntity<OperationStatusResponse> updateComments(@PathVariable String type,
-                                                                  @Valid @RequestBody CommentBatchRequest request) {
-        CommentType commentType = resolveCommentType(type);
+
+    @PostMapping("/comments/update")
+    public ResponseEntity<OperationStatusResponse> update(@Valid @RequestBody CommentUpdateRequest request) {
+        Optional<CommentService> service = commentService();
+        if (service.isEmpty()) {
+            return ResponseEntity.ok(OperationStatusResponse.ok("更新接口已就绪，待接入实际业务逻辑。"));
+        }
+        boolean updated = service.get().updateComment(request.comment());
+        return ResponseEntity.ok(updated
+                ? OperationStatusResponse.ok()
+                : OperationStatusResponse.failed("更新失败"));
+    }
+
+    @PostMapping("/comments/batchUpdate")
+    public ResponseEntity<OperationStatusResponse> batchUpdate(
+            @Valid @RequestBody CommentBatchRequest request) {
         Optional<CommentService> service = commentService();
         if (service.isEmpty()) {
             return ResponseEntity.ok(OperationStatusResponse.ok("批量更新接口已就绪，待接入实际业务逻辑。"));
         }
-        List<Comment> comments = new ArrayList<>();
-        for (CommentPayload payload : request.comments()) {
-            comments.add(toComment(payload, commentType));
-        }
         try {
-            boolean updated = service.get().uploadAllToServer(comments);
+            boolean updated = service.get().uploadAllToServer(request.commentList());
             return ResponseEntity.ok(updated
                     ? OperationStatusResponse.ok()
                     : OperationStatusResponse.failed("更新失败"));
@@ -182,25 +169,13 @@ public class CommentController {
     }
 
     @PostMapping("/comments/local/load")
-    public ResponseEntity<LocalLoadResponse> loadFromLocal(@Valid @RequestBody LocalLoadRequest request) {
-        String type = request.type();
-        CommentType commentType = null;
-        if (StringUtils.hasText(type)) {
-            commentType = resolveCommentType(type);
-        }
+    public ResponseEntity<List<Comment>> loadFromLocal(@Valid @RequestBody LocalLoadRequest request) {
         try {
-            List<Comment> comments = commentRepository.loadFromLocalFile(request.path());
-            if (comments == null) {
-                comments = Collections.emptyList();
+            List<Comment> commentList = commentRepository.loadFromLocalFile(request.path());
+            if (commentList == null) {
+                commentList = Collections.emptyList();
             }
-            if (commentType != null) {
-                comments.forEach(comment -> {
-                    if (comment.getType() == null) {
-                        comment.setType(commentType);
-                    }
-                });
-            }
-            return ResponseEntity.ok(new LocalLoadResponse(type, comments));
+            return ResponseEntity.ok(commentList);
         } catch (JsonFileIOException ex) {
             throw translateException(ex);
         }
@@ -208,25 +183,15 @@ public class CommentController {
 
     @PostMapping("/comments/local/save")
     public ResponseEntity<OperationStatusResponse> saveToLocal(@Valid @RequestBody LocalSaveRequest request) {
-        if (CollectionUtils.isEmpty(request.commentsByType())) {
+        if (CollectionUtils.isEmpty(request.commentList())) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "没有可供保存的注释内容");
         }
-        List<Comment> comments = new ArrayList<>();
-        for (Map.Entry<String, List<CommentPayload>> entry : request.commentsByType().entrySet()) {
-            CommentType commentType = resolveCommentType(entry.getKey());
-            List<CommentPayload> payloads = entry.getValue();
-            if (payloads == null) {
-                continue;
-            }
-            for (CommentPayload payload : payloads) {
-                comments.add(toComment(payload, commentType));
-            }
-        }
-        if (comments.isEmpty()) {
+        List<Comment> commentList = request.commentList();
+        if (commentList.isEmpty()) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "没有可供保存的注释内容");
         }
         try {
-            commentRepository.saveToJson(comments, request.path());
+            commentRepository.saveToJson(commentList, request.path());
             return ResponseEntity.ok(OperationStatusResponse.ok());
         } catch (JsonFileIOException | InvalidParaException ex) {
             throw translateException(ex);
@@ -257,20 +222,6 @@ public class CommentController {
             return matching.iterator().next();
         }
         throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "暂不支持的注释类型: " + type);
-    }
-
-    private Comment toComment(CommentPayload payload, CommentType defaultType) {
-        Comment comment = new Comment();
-        if (payload.id() != null) {
-            comment.setId(payload.id());
-        }
-        comment.setContent(payload.content());
-        CommentType resolvedType = defaultType;
-        if (StringUtils.hasText(payload.type())) {
-            resolvedType = resolveCommentType(payload.type());
-        }
-        comment.setType(resolvedType);
-        return comment;
     }
 
     private ResponseStatusException translateException(Exception ex) {

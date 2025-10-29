@@ -547,7 +547,7 @@ createApp({
         isFlashing(type) {
             return Boolean(type && this.records[type]?.flashActive);
         },
-        // 为指定类型的数据面板触发一次约 2 秒的闪烁动画，提示用户数据发生了变化。
+        // 为指定类型的数据面板触发一次约 1.5 秒的闪烁动画，提示用户数据发生了变化。
         triggerFlash(type) {
             const record = this.records[type];
             if (!record) return;
@@ -558,7 +558,7 @@ createApp({
             record.flashTimer = setTimeout(() => {
                 record.flashActive = false;
                 record.flashTimer = null;
-            }, 2000);
+            }, 1500);
         },
         clearDisplay() {
             this.displayPanels.forEach((panel) => {
