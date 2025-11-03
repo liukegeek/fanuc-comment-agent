@@ -1,5 +1,278 @@
 const { createApp } = Vue;
 
+const API_BASE_URL = "/api";
+
+// -----------------------------------------------------------------------------
+// HTTP 桥接：通过 REST 接口与后端 SpringBoot 服务通信。
+// -----------------------------------------------------------------------------
+/**
+ * 创建一个面向 Comment REST 接口的 HTTP 桥接对象。
+ *
+ * @param {string} baseUrl - 后端服务提供的基础路径，例如 "/api"。
+ * @returns {object} 对应前端可调用的方法集合。
+ */
+function createHttpBridge(baseUrl = API_BASE_URL) {
+    const normalizedBase = baseUrl.endsWith("/")
+        ? baseUrl.slice(0, -1)
+        : baseUrl;
+
+    /**
+     * 构建请求地址，将路径与查询参数组合为合法的 URL 字符串。
+     *
+     * @param {string} path - 以斜杠开头的接口路径。
+     * @param {Record<string, string | number | null | undefined>} [query] - 可选的查询参数。
+     * @returns {string} 拼接后的完整请求地址。
+     */
+    const buildUrl = (path, query) => {
+        const params = new URLSearchParams();
+        if (query) {
+            Object.entries(query).forEach(([key, value]) => {
+                if (value === undefined || value === null || value === "") {
+                    return;
+                }
+                params.append(key, String(value));
+            });
+        }
+        const queryString = params.toString();
+        return `${normalizedBase}${path}${queryString ? `?${queryString}` : ""}`;
+    };
+
+    /**
+     * 向后端发起 JSON 请求并处理返回值。
+     *
+     * @param {string} method - HTTP 动作，例如 "GET"、"POST"。
+     * @param {string} path - 请求路径。
+     * @param {object} [options]
+     * @param {Record<string, string | number | null | undefined>} [options.query] - 需要附带的查询参数。
+     * @param {unknown} [options.body] - 需要序列化的请求体。
+     * @returns {Promise<any>} 解析后的 JSON 对象，或在无内容时返回 null。
+     */
+    const request = async (method, path, { query, body } = {}) => {
+        const fetchOptions = {
+            method,
+            headers: {},
+        };
+        if (body !== undefined) {
+            fetchOptions.headers["Content-Type"] = "application/json";
+            fetchOptions.body = JSON.stringify(body);
+        }
+        const url = buildUrl(path, query);
+        let response;
+        try {
+            response = await fetch(url, fetchOptions);
+        } catch (error) {
+            throw new Error(`无法连接到后端服务: ${error.message}`);
+        }
+        const text = await response.text();
+        if (!response.ok) {
+            const message = text || response.statusText || "请求失败";
+            throw new Error(message);
+        }
+        if (!text) {
+            return null;
+        }
+        try {
+            return JSON.parse(text);
+        } catch (error) {
+            throw new Error("后端返回的内容不是有效的 JSON 格式");
+        }
+    };
+
+    /**
+     * 提取 CommentType 的原始字符串值。
+     *
+     * @param {unknown} rawType - Comment.type 字段的原始值。
+     * @returns {string | null} 解析后的字符串表示。
+     */
+    const extractTypeValue = (rawType) => {
+        if (!rawType) return null;
+        if (typeof rawType === "string") return rawType;
+        if (typeof rawType === "object" && "name" in rawType) {
+            return rawType.name;
+        }
+        return null;
+    };
+
+    /**
+     * 将类型值规范化为服务端可识别的格式。
+     *
+     * @param {string} type - 前端内部使用的类型标识。
+     * @returns {string | null} 处理后的类型字符串。
+     */
+    const normalizeTypeForServer = (type) => {
+        if (!type) return null;
+        return String(type).replace(/-/g, "_").toUpperCase();
+    };
+
+    /**
+     * 将任意形式的编号转换为整数，便于提交给服务端。
+     *
+     * @param {unknown} value - 需要转换的编号。
+     * @returns {number | null} 可被后端接受的整数，无法解析时返回 null。
+     */
+    const normalizeId = (value) => {
+        if (value === null || value === undefined || value === "") return null;
+        const parsed = Number(value);
+        return Number.isFinite(parsed) ? parsed : null;
+    };
+
+    /**
+     * 构造提交给后端的 Comment 载荷。
+     *
+     * @param {{ id: unknown; content: string }} item - 待上传的注释对象。
+     * @param {string} type - 注释所属的类别。
+     * @returns {{ id: number | null; content: string; type: string | null }} 格式化后的注释。
+     */
+    const formatPayload = (item, type) => ({
+        id: normalizeId(item?.id),
+        content: item?.content ?? "",
+        type: normalizeTypeForServer(type),
+    });
+
+    /**
+     * 统一解析后端返回的注释集合，兼容多种包裹结构。
+     *
+     * @param {any} data - 后端返回的原始数据。
+     * @returns {Array<any>} 注释数组，无法解析时返回空数组。
+     */
+    const ensureCommentList = (data) => {
+        if (!data) return [];
+        if (Array.isArray(data)) return data;
+        if (Array.isArray(data.comments)) return data.comments;
+        if (Array.isArray(data.commentList)) return data.commentList;
+        if (Array.isArray(data.data)) return data.data;
+        return [];
+    };
+
+    return {
+        /**
+         * @returns {Promise<any>} 健康检查响应，后端存活时返回 { ok: true }。
+         */
+        async health() {
+            return request("GET", "/health");
+        },
+        /**
+         * 按照编号查询单条注释。
+         *
+         * @param {string} type - 注释类型，例如 "R_Comment"。
+         * @param {string | number} id - 需要查询的编号。
+         * @returns {Promise<Array<any>>} 匹配的注释列表（0 或 1 条）。
+         */
+        async queryById(type, id) {
+            const data = await request("GET", "/comments/queryById", {
+                query: { type, id },
+            });
+            return ensureCommentList(data);
+        },
+        /**
+         * 根据关键字模糊查询注释。
+         *
+         * @param {string} type - 注释类型。
+         * @param {string} keyword - 查询关键字。
+         * @returns {Promise<Array<any>>} 查询到的注释集合。
+         */
+        async queryByKeyword(type, keyword) {
+            const data = await request("GET", "/comments/queryByKeyWord", {
+                query: { type, keyword },
+            });
+            return ensureCommentList(data);
+        },
+        /**
+         * 按照编号范围批量查询注释。
+         *
+         * @param {string} type - 注释类型。
+         * @param {string | number} start - 范围起始编号。
+         * @param {string | number} end - 范围结束编号。
+         * @returns {Promise<Array<any>>} 对应范围内的注释集合。
+         */
+        async queryByIdRange(type, start, end) {
+            const data = await request("GET", "/comments/queryByIdRange", {
+                query: { type, start, end },
+            });
+            return ensureCommentList(data);
+        },
+        /**
+         * 查询指定类型的全部注释。
+         *
+         * @param {string} type - 注释类型。
+         * @returns {Promise<Array<any>>} 后端返回的完整注释列表。
+         */
+        async queryAll(type) {
+            const data = await request("GET", "/comments/queryAll", {
+                query: { type },
+            });
+            return ensureCommentList(data);
+        },
+        /**
+         * 更新单条注释内容。
+         *
+         * @param {string} type - 注释类型。
+         * @param {{ id: number | string; content: string }} comment - 被修改的注释。
+         * @returns {Promise<any>} 后端返回的操作状态对象。
+         */
+        async updateComment(type, comment) {
+            const payload = { comment: formatPayload(comment, type) };
+            return request("POST", "/comments/update", { body: payload });
+        },
+        /**
+         * 批量上传同一类型的注释列表。
+         *
+         * @param {string} type - 注释类型。
+         * @param {Array<{ id: number | string; content: string }>} comments - 待上传的注释集合。
+         * @returns {Promise<any>} 后端返回的操作状态对象。
+         */
+        async updateAll(type, comments) {
+            const commentList = Array.isArray(comments)
+                ? comments.map((item) => formatPayload(item, type))
+                : [];
+            return request("POST", "/comments/batchUpdate", {
+                body: { commentList },
+            });
+        },
+        /**
+         * 从本地 JSON 文件中读取注释数据。
+         *
+         * @param {string} path - 文件绝对路径或相对路径。
+         * @param {string} [type] - 需要筛选的注释类型。
+         * @returns {Promise<Array<any>>} 读取到的注释集合，若指定类型则已过滤。
+         */
+        async loadFromLocal(path, type) {
+            const data = await request("POST", "/comments/local/load", {
+                body: { path },
+            });
+            const list = ensureCommentList(data);
+            if (!type) {
+                return list;
+            }
+            const normalizedType = normalizeTypeForServer(type);
+            return list.filter((item) => {
+                const itemType = normalizeTypeForServer(
+                    extractTypeValue(item?.type)
+                );
+                return !normalizedType || itemType === normalizedType;
+            });
+        },
+        /**
+         * 将注释集合保存到本地 JSON 文件。
+         *
+         * @param {string} path - 目标文件路径。
+         * @param {Record<string, Array<{ id: number | string; content: string }>>} grouped - 按类型分组的注释集合。
+         * @returns {Promise<any>} 后端返回的操作状态对象。
+         */
+        async saveToLocal(path, grouped) {
+            const commentList = [];
+            Object.entries(grouped || {}).forEach(([key, list]) => {
+                (Array.isArray(list) ? list : []).forEach((item) => {
+                    commentList.push(formatPayload(item, key));
+                });
+            });
+            return request("POST", "/comments/local/save", {
+                body: { path, commentList },
+            });
+        },
+    };
+}
+
 // -----------------------------------------------------------------------------
 // 演示桥接：当 Java 侧尚未注入真实的 CommentUIBridge 时，前端依然可以
 // 通过该模拟对象完成所有数据交互，方便我们专注在界面与交互逻辑上。
@@ -81,6 +354,15 @@ function createDemoBridge() {
         async updateAll(type, comments) {
             store[type] = ensureList(comments).map((item) => clone(item));
             return delay({ success: true }, 400);
+        },
+        async loadFromLocal(path, type) {
+            return delay(clone(store[type] || []));
+        },
+        async saveToLocal() {
+            return delay({ success: true });
+        },
+        async health() {
+            return delay({ ok: true, demo: true }, 120);
         },
     };
 }
@@ -191,13 +473,7 @@ createApp({
         },
     },
     created() {
-        // 优先使用 Java 注入的真实桥接对象，若不存在则降级到演示数据。
-        this.commentApi = window.CommentUIBridge ?? createDemoBridge();
-        if (this.commentApi.__isDemo) {
-            this.demoMode = true;
-            this.setStatus("当前展示为示例数据，可随时替换为实际接口。", "info");
-            this.queryAll();
-        }
+        this.bootstrapBridge();
     },
     beforeUnmount() {
         // 组件卸载前清理仍在等待的动画计时器，避免潜在的内存泄露。
@@ -419,7 +695,7 @@ createApp({
         isFlashing(type) {
             return Boolean(type && this.records[type]?.flashActive);
         },
-        // 为指定类型的数据面板触发一次约 2 秒的闪烁动画，提示用户数据发生了变化。
+        // 为指定类型的数据面板触发一次约 1.5 秒的闪烁动画，提示用户数据发生了变化。
         triggerFlash(type) {
             const record = this.records[type];
             if (!record) return;
@@ -430,7 +706,7 @@ createApp({
             record.flashTimer = setTimeout(() => {
                 record.flashActive = false;
                 record.flashTimer = null;
-            }, 2000);
+            }, 1500);
         },
         clearDisplay() {
             this.displayPanels.forEach((panel) => {
@@ -455,6 +731,7 @@ createApp({
         // 查询相关操作
         // ------------------------------------------------------------------
         async queryById() {
+            if (!this.ensureBridge()) return;
             const id = this.search.singleId.trim();
             if (!id) {
                 this.setStatus("请输入要查询的 ID。", "error");
@@ -467,6 +744,7 @@ createApp({
             });
         },
         async queryByKeyword() {
+            if (!this.ensureBridge()) return;
             const keyword = this.search.keyword.trim();
             if (!keyword) {
                 this.setStatus("请输入要查询的关键字。", "error");
@@ -485,6 +763,7 @@ createApp({
             });
         },
         async queryByRange() {
+            if (!this.ensureBridge()) return;
             if (!this.canQueryRange) {
                 this.setStatus("请正确填写 ID 范围。", "error");
                 return;
@@ -501,6 +780,7 @@ createApp({
             });
         },
         async queryAll() {
+            if (!this.ensureBridge()) return;
             await this.runAsync(async () => {
                 const response = await this.commentApi.queryAll(this.selectedType);
                 this.applyServerRecords(this.selectedType, response);
@@ -511,6 +791,7 @@ createApp({
         // 上传与本地文件操作
         // ------------------------------------------------------------------
         async uploadSelected() {
+            if (!this.ensureBridge()) return;
             const { payload, total } = this.collectSelectedPayloads();
             if (!total) {
                 this.setStatus("请至少勾选一条需要上传的记录。", "error");
@@ -541,71 +822,45 @@ createApp({
                 this.setStatus(`已将 ${total} 条记录上传到机器人。`, "success");
             });
         },
-        saveToLocal() {
+        async saveToLocal() {
+            if (!this.ensureBridge()) return;
             const { payload, total } = this.collectSelectedPayloads();
             if (!total) {
                 this.setStatus("请至少勾选一条需要保存的记录。", "error");
                 return;
             }
-            const data = {
-                exportedAt: new Date().toISOString(),
-                types: payload,
-            };
-            const blob = new Blob([JSON.stringify(data, null, 2)], {
-                type: "application/json",
-            });
-            const url = URL.createObjectURL(blob);
-            const a = document.createElement("a");
-            a.href = url;
-            a.download = "fanuc-comments-selection.json";
-            a.click();
-            URL.revokeObjectURL(url);
-            this.setStatus(`已保存 ${total} 条记录到本地文件。`, "success");
-        },
-        loadFromLocal() {
-            const input = this.$refs.fileInput;
-            if (input) {
-                input.value = "";
-                input.click();
+            const defaultPath = `${this.selectedType.toLowerCase()}-comments.json`;
+            const path = window.prompt("请输入要保存的本地文件路径", defaultPath);
+            if (!path) {
+                this.setStatus("已取消保存操作。", "info");
+                return;
             }
+            await this.runAsync(async () => {
+                await this.commentApi.saveToLocal(path, payload);
+                this.setStatus(`已请求保存 ${total} 条记录到 ${path}。`, "success");
+            });
         },
-        handleLocalFile(event) {
-            const [file] = event.target.files || [];
-            if (!file) return;
-            const reader = new FileReader();
-            reader.onload = () => {
-                try {
-                    const parsed = JSON.parse(reader.result);
-                    let loaded = 0;
-                    if (Array.isArray(parsed)) {
-                        this.applyLocalRecords(this.selectedType, parsed);
-                        loaded = parsed.length;
-                    } else if (parsed?.types && typeof parsed.types === "object") {
-                        Object.entries(parsed.types).forEach(([type, list]) => {
-                            if (this.records[type]) {
-                                this.applyLocalRecords(type, list);
-                                loaded += Array.isArray(list) ? list.length : 0;
-                            }
-                        });
-                    } else {
-                        const targetType =
-                            parsed?.type && this.records[parsed.type]
-                                ? parsed.type
-                                : this.selectedType;
-                        const list = Array.isArray(parsed?.records) ? parsed.records : [];
-                        this.applyLocalRecords(targetType, list);
-                        loaded = list.length;
-                    }
-                    this.setStatus(`已从本地文件加载 ${loaded} 条数据。`, "success");
-                } catch (error) {
-                    console.error(error);
-                    this.setStatus("文件解析失败，请检查 JSON 格式。", "error");
-                }
-            };
-            reader.onerror = () => {
-                this.setStatus("文件读取失败，请重试。", "error");
-            };
-            reader.readAsText(file, "utf-8");
+        async loadFromLocal() {
+            if (!this.ensureBridge()) return;
+            const path = window.prompt("请输入本地文件路径", "");
+            if (!path) {
+                this.setStatus("已取消本地加载。", "info");
+                return;
+            }
+            await this.runAsync(async () => {
+                const response = await this.commentApi.loadFromLocal(
+                    path,
+                    this.selectedType
+                );
+                const items = Array.isArray(response)
+                    ? response
+                    : response?.comments || [];
+                this.applyLocalRecords(this.selectedType, items);
+                this.setStatus(
+                    `已从 ${path} 加载 ${items.length} 条数据。`,
+                    "success"
+                );
+            });
         },
         // ------------------------------------------------------------------
         // 统一的状态显示与异步执行封装
@@ -614,6 +869,44 @@ createApp({
             this.statusMessage = message;
             this.statusLevel = level;
             this.statusUpdatedAt = new Date();
+        },
+        async bootstrapBridge() {
+            if (this.commentApi) {
+                return;
+            }
+            this.loading = true;
+            try {
+                if (window.CommentUIBridge) {
+                    this.commentApi = window.CommentUIBridge;
+                    this.demoMode = !!this.commentApi.__isDemo;
+                    if (this.demoMode) {
+                        this.setStatus(
+                            "当前展示为示例数据，可随时替换为实际接口。",
+                            "info"
+                        );
+                        await this.queryAll();
+                    } else {
+                        this.setStatus("已接入宿主环境提供的注释接口。", "success");
+                    }
+                    return;
+                }
+                const api = createHttpBridge();
+                await api.health();
+                this.commentApi = api;
+                this.demoMode = false;
+                this.setStatus("已连接后端服务，可开始操作。", "success");
+            } catch (error) {
+                console.warn("后端接口不可用，使用演示数据。", error);
+                this.commentApi = createDemoBridge();
+                this.demoMode = true;
+                this.setStatus(
+                    "当前展示为示例数据，可随时替换为实际接口。",
+                    "info"
+                );
+                await this.queryAll();
+            } finally {
+                this.loading = false;
+            }
         },
         async runAsync(task) {
             try {
@@ -628,6 +921,13 @@ createApp({
             } finally {
                 this.loading = false;
             }
+        },
+        ensureBridge() {
+            if (!this.commentApi) {
+                this.setStatus("接口尚未初始化，请稍后重试。", "error");
+                return false;
+            }
+            return true;
         },
     },
 }).mount("#app");
