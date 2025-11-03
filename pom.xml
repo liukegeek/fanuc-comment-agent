@@ -4,12 +4,16 @@
          xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
     <modelVersion>4.0.0</modelVersion>
 
-    <groupId>com.byd.coment</groupId>
-    <artifactId>FanucHelper</artifactId>
-    <version>0.01</version>
+
+    <groupId>com.byd.tools</groupId>
+    <artifactId>fanuc-comment-agent</artifactId>
+    <version>0.1.0</version>
+    <name>fanuc-comment-agent</name>
+    <description>Fanuc comment agent based on local-web</description>
+
 
     <properties>
-        <java.version>24</java.version>   <!-- 指明 Java 版本为 21 -->
+        <java.version>21</java.version>   <!-- 指明 Java 版本为 21 -->
         <maven.compiler.source>${java.version}</maven.compiler.source>
         <maven.compiler.target>${java.version}</maven.compiler.target>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
@@ -71,22 +75,18 @@
             <version>2.20.0</version>
         </dependency>
 
-        <!-- https://mvnrepository.com/artifact/org.springframework.boot/spring-boot-starter-web -->
         <dependency>
+            <!-- Spring Web（嵌入式 Tomcat + Jackson） -->
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-web</artifactId>
         </dependency>
 
         <dependency>
+            <!-- Bean Validation（@Valid、@NotBlank 等） -->
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-validation</artifactId>
         </dependency>
 
-<!--        <dependency>-->
-<!--            <groupId>org.projectlombok</groupId>-->
-<!--            <artifactId>lombok</artifactId>-->
-<!--            <optional>true</optional>-->
-<!--        </dependency>-->
 
 
         <!-- 添加Mockito依赖，用于单元测试中的模拟对象 -->
@@ -178,12 +178,38 @@
 <!--                </executions>-->
 <!--            </plugin>-->
 
-
-
             <plugin>
                 <groupId>org.springframework.boot</groupId>
                 <artifactId>spring-boot-maven-plugin</artifactId>
+                <configuration>
+                    <!-- 如果你有多个 @SpringBootApplication，显式指定主类；否则可省略 -->
+                    <!-- <mainClass>com.byd.tools.FanucWebApplication</mainClass> -->
+
+                    <layers enabled="true"/>
+                </configuration>
+                <executions>
+                    <!--增加 <goal>repackage</goal> → mvn package 就会自动产出 可执行 jar（而不是普通 jar）。-->
+                    <!--之后就能 java -jar target/xxx.jar 启动了（当然我们最终要用 jlink+jpackage 封装）。-->
+                    <execution>
+                        <goals>
+                            <goal>repackage</goal>
+                        </goals>
+                    </execution>
+                </executions>
             </plugin>
+
+
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-compiler-plugin</artifactId>
+                <version>3.13.0</version>
+                <configuration>
+                    <source>${java.version}</source>
+                    <target>${java.version}</target>
+                    <release>${java.version}</release>
+                </configuration>
+            </plugin>
+
 <!--            <plugin>-->
 <!--                <groupId>org.apache.maven.plugins</groupId>-->
 <!--                <artifactId>maven-compiler-plugin</artifactId>-->
