@@ -1,0 +1,104 @@
+name: Build Desktop Apps
+
+on:
+  workflow_dispatch:
+  push:
+    tags:
+      - "v*.*.*"     # 打 tag 自动出包，例如 v0.1.0
+
+jobs:
+  build:
+    # mac + windows 都打；如暂时只想打 windows，把 macos-latest 去掉
+    strategy:
+      matrix:
+        os: [macos-latest, windows-latest]
+        java: [ '21' ]   # 建议用 LTS 21，Boot 3.4 最稳
+    runs-on: ${{ matrix.os }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Temurin JDK ${{ matrix.java }}
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: ${{ matrix.java }}
+          cache: maven
+
+      - name: Maven package (skip tests)
+        run: mvn -B -DskipTests package
+
+      # 统一定义一些变量（不同 OS 写法不一样）
+      - name: Set env (posix)
+        if: runner.os != 'Windows'
+        run: |
+          echo "APP_NAME=FanucComment" >> $GITHUB_ENV
+          echo "APP_VER=${GITHUB_REF_NAME#v}" >> $GITHUB_ENV
+          echo "MAIN_JAR=target/fanuc-comment-agent-0.1.0.jar" >> $GITHUB_ENV
+          echo "MAIN_CLASS=" >> $GITHUB_ENV  # Boot fat-jar 不要写 main-class，走 -jar
+      - name: Set env (windows)
+        if: runner.os == 'Windows'
+        run: |
+          echo APP_NAME=FanucComment>> %GITHUB_ENV%
+          echo APP_VER=%GITHUB_REF_NAME:v=%>> %GITHUB_ENV%
+          echo MAIN_JAR=target\\fanuc-comment-agent-0.1.0.jar>> %GITHUB_ENV%
+          echo MAIN_CLASS=>> %GITHUB_ENV%
+
+      # 绿色版（app-image）：包含自带 JRE，双击即可
+      - name: jpackage app-image (macOS)
+        if: runner.os == 'macOS'
+        run: |
+          $JAVA_HOME/bin/jpackage \
+            --type app-image \
+            --name "$APP_NAME" \
+            --app-version "${APP_VER:-0.1.0}" \
+            --input target \
+            --main-jar "$(basename "$MAIN_JAR")" \
+            --java-options "-Dserver.port=8910" \
+            --java-options "--enable-native-access=ALL-UNNAMED" \
+            --dest dist
+          # 打 DMG（可选）：也一起产出
+          $JAVA_HOME/bin/jpackage \
+            --type dmg \
+            --name "$APP_NAME" \
+            --app-version "${APP_VER:-0.1.0}" \
+            --input dist \
+            --dest dist
+
+      - name: jpackage app-image (Windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          & "$env:JAVA_HOME\bin\jpackage.exe" `
+            --type app-image `
+            --name "$env:APP_NAME" `
+            --app-version "${env:APP_VER:-0.1.0}" `
+            --input target `
+            --main-jar (Split-Path $env:MAIN_JAR -Leaf) `
+            --java-options "-Dserver.port=8910" `
+            --java-options "--enable-native-access=ALL-UNNAMED" `
+            --dest dist
+
+          # 将 app-image 压缩为 zip，便于下载/分发（绿色版）
+          Compress-Archive -Path "dist\$env:APP_NAME" -DestinationPath "dist\$env:APP_NAME-windows-portable.zip"
+
+          # 如需 MSI（安装包），先安装 WiX，再取消下面注释：
+          # iwr -useb https://download.wixtoolset.org/releases/v3.14.1.8622/wix314-binaries.zip -o wix.zip
+          # Expand-Archive wix.zip -DestinationPath wix
+          # $env:WIX="/p:WixToolPath=$PWD\wix"
+          # & "$env:JAVA_HOME\bin\jpackage.exe" `
+          #   --type msi `
+          #   --name "$env:APP_NAME" `
+          #   --app-version "${env:APP_VER:-0.1.0}" `
+          #   --input target `
+          #   --main-jar (Split-Path $env:MAIN_JAR -Leaf) `
+          #   --java-options "-Dserver.port=8910" `
+          #   --dest dist
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.os }}-artifacts
+          path: |
+            dist/**
