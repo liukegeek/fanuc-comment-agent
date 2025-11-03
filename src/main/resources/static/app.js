@@ -5,25 +5,61 @@ const API_BASE_URL = "/api";
 // -----------------------------------------------------------------------------
 // HTTP 桥接：通过 REST 接口与后端 SpringBoot 服务通信。
 // -----------------------------------------------------------------------------
+/**
+ * 创建一个面向 Comment REST 接口的 HTTP 桥接对象。
+ *
+ * @param {string} baseUrl - 后端服务提供的基础路径，例如 "/api"。
+ * @returns {object} 对应前端可调用的方法集合。
+ */
 function createHttpBridge(baseUrl = API_BASE_URL) {
     const normalizedBase = baseUrl.endsWith("/")
         ? baseUrl.slice(0, -1)
         : baseUrl;
 
-    const buildUrl = (path) => `${normalizedBase}${path}`;
+    /**
+     * 构建请求地址，将路径与查询参数组合为合法的 URL 字符串。
+     *
+     * @param {string} path - 以斜杠开头的接口路径。
+     * @param {Record<string, string | number | null | undefined>} [query] - 可选的查询参数。
+     * @returns {string} 拼接后的完整请求地址。
+     */
+    const buildUrl = (path, query) => {
+        const params = new URLSearchParams();
+        if (query) {
+            Object.entries(query).forEach(([key, value]) => {
+                if (value === undefined || value === null || value === "") {
+                    return;
+                }
+                params.append(key, String(value));
+            });
+        }
+        const queryString = params.toString();
+        return `${normalizedBase}${path}${queryString ? `?${queryString}` : ""}`;
+    };
 
-    const request = async (method, path, body) => {
-        const options = {
+    /**
+     * 向后端发起 JSON 请求并处理返回值。
+     *
+     * @param {string} method - HTTP 动作，例如 "GET"、"POST"。
+     * @param {string} path - 请求路径。
+     * @param {object} [options]
+     * @param {Record<string, string | number | null | undefined>} [options.query] - 需要附带的查询参数。
+     * @param {unknown} [options.body] - 需要序列化的请求体。
+     * @returns {Promise<any>} 解析后的 JSON 对象，或在无内容时返回 null。
+     */
+    const request = async (method, path, { query, body } = {}) => {
+        const fetchOptions = {
             method,
             headers: {},
         };
-        if (body !== undefined && body !== null) {
-            options.headers["Content-Type"] = "application/json";
-            options.body = JSON.stringify(body);
+        if (body !== undefined) {
+            fetchOptions.headers["Content-Type"] = "application/json";
+            fetchOptions.body = JSON.stringify(body);
         }
+        const url = buildUrl(path, query);
         let response;
         try {
-            response = await fetch(buildUrl(path), options);
+            response = await fetch(url, fetchOptions);
         } catch (error) {
             throw new Error(`无法连接到后端服务: ${error.message}`);
         }
@@ -42,84 +78,196 @@ function createHttpBridge(baseUrl = API_BASE_URL) {
         }
     };
 
+    /**
+     * 提取 CommentType 的原始字符串值。
+     *
+     * @param {unknown} rawType - Comment.type 字段的原始值。
+     * @returns {string | null} 解析后的字符串表示。
+     */
+    const extractTypeValue = (rawType) => {
+        if (!rawType) return null;
+        if (typeof rawType === "string") return rawType;
+        if (typeof rawType === "object" && "name" in rawType) {
+            return rawType.name;
+        }
+        return null;
+    };
+
+    /**
+     * 将类型值规范化为服务端可识别的格式。
+     *
+     * @param {string} type - 前端内部使用的类型标识。
+     * @returns {string | null} 处理后的类型字符串。
+     */
+    const normalizeTypeForServer = (type) => {
+        if (!type) return null;
+        return String(type).replace(/-/g, "_").toUpperCase();
+    };
+
+    /**
+     * 将任意形式的编号转换为整数，便于提交给服务端。
+     *
+     * @param {unknown} value - 需要转换的编号。
+     * @returns {number | null} 可被后端接受的整数，无法解析时返回 null。
+     */
     const normalizeId = (value) => {
         if (value === null || value === undefined || value === "") return null;
         const parsed = Number(value);
-        return Number.isNaN(parsed) ? null : parsed;
+        return Number.isFinite(parsed) ? parsed : null;
     };
 
+    /**
+     * 构造提交给后端的 Comment 载荷。
+     *
+     * @param {{ id: unknown; content: string }} item - 待上传的注释对象。
+     * @param {string} type - 注释所属的类别。
+     * @returns {{ id: number | null; content: string; type: string | null }} 格式化后的注释。
+     */
     const formatPayload = (item, type) => ({
         id: normalizeId(item?.id),
         content: item?.content ?? "",
-        type,
+        type: normalizeTypeForServer(type),
     });
 
+    /**
+     * 统一解析后端返回的注释集合，兼容多种包裹结构。
+     *
+     * @param {any} data - 后端返回的原始数据。
+     * @returns {Array<any>} 注释数组，无法解析时返回空数组。
+     */
     const ensureCommentList = (data) => {
+        if (!data) return [];
         if (Array.isArray(data)) return data;
-        if (data && Array.isArray(data.comments)) {
-            return data.comments;
-        }
+        if (Array.isArray(data.comments)) return data.comments;
+        if (Array.isArray(data.commentList)) return data.commentList;
+        if (Array.isArray(data.data)) return data.data;
         return [];
     };
 
     return {
+        /**
+         * @returns {Promise<any>} 健康检查响应，后端存活时返回 { ok: true }。
+         */
         async health() {
             return request("GET", "/health");
         },
+        /**
+         * 按照编号查询单条注释。
+         *
+         * @param {string} type - 注释类型，例如 "R_Comment"。
+         * @param {string | number} id - 需要查询的编号。
+         * @returns {Promise<Array<any>>} 匹配的注释列表（0 或 1 条）。
+         */
         async queryById(type, id) {
-            const data = await request(
-                "GET",
-                `/comments/${encodeURIComponent(type)}/id/${encodeURIComponent(id)}`
-            );
+            const data = await request("GET", "/comments/queryById", {
+                query: { type, id },
+            });
             return ensureCommentList(data);
         },
+        /**
+         * 根据关键字模糊查询注释。
+         *
+         * @param {string} type - 注释类型。
+         * @param {string} keyword - 查询关键字。
+         * @returns {Promise<Array<any>>} 查询到的注释集合。
+         */
         async queryByKeyword(type, keyword) {
-            const data = await request(
-                "GET",
-                `/comments/${encodeURIComponent(type)}/keyword?keyword=${encodeURIComponent(keyword)}`
-            );
+            const data = await request("GET", "/comments/queryByKeyWord", {
+                query: { type, keyword },
+            });
             return ensureCommentList(data);
         },
+        /**
+         * 按照编号范围批量查询注释。
+         *
+         * @param {string} type - 注释类型。
+         * @param {string | number} start - 范围起始编号。
+         * @param {string | number} end - 范围结束编号。
+         * @returns {Promise<Array<any>>} 对应范围内的注释集合。
+         */
         async queryByIdRange(type, start, end) {
-            const data = await request(
-                "GET",
-                `/comments/${encodeURIComponent(type)}/range?start=${encodeURIComponent(start)}&end=${encodeURIComponent(end)}`
-            );
+            const data = await request("GET", "/comments/queryByIdRange", {
+                query: { type, start, end },
+            });
             return ensureCommentList(data);
         },
+        /**
+         * 查询指定类型的全部注释。
+         *
+         * @param {string} type - 注释类型。
+         * @returns {Promise<Array<any>>} 后端返回的完整注释列表。
+         */
         async queryAll(type) {
-            const data = await request(
-                "GET",
-                `/comments/${encodeURIComponent(type)}`
-            );
+            const data = await request("GET", "/comments/queryAll", {
+                query: { type },
+            });
             return ensureCommentList(data);
         },
+        /**
+         * 更新单条注释内容。
+         *
+         * @param {string} type - 注释类型。
+         * @param {{ id: number | string; content: string }} comment - 被修改的注释。
+         * @returns {Promise<any>} 后端返回的操作状态对象。
+         */
+        async updateComment(type, comment) {
+            const payload = { comment: formatPayload(comment, type) };
+            return request("POST", "/comments/update", { body: payload });
+        },
+        /**
+         * 批量上传同一类型的注释列表。
+         *
+         * @param {string} type - 注释类型。
+         * @param {Array<{ id: number | string; content: string }>} comments - 待上传的注释集合。
+         * @returns {Promise<any>} 后端返回的操作状态对象。
+         */
         async updateAll(type, comments) {
-            const payload = {
-                comments: Array.isArray(comments)
-                    ? comments.map((item) => formatPayload(item, type))
-                    : [],
-            };
-            return request(
-                "POST",
-                `/comments/${encodeURIComponent(type)}/batch`,
-                payload
-            );
+            const commentList = Array.isArray(comments)
+                ? comments.map((item) => formatPayload(item, type))
+                : [];
+            return request("POST", "/comments/batchUpdate", {
+                body: { commentList },
+            });
         },
+        /**
+         * 从本地 JSON 文件中读取注释数据。
+         *
+         * @param {string} path - 文件绝对路径或相对路径。
+         * @param {string} [type] - 需要筛选的注释类型。
+         * @returns {Promise<Array<any>>} 读取到的注释集合，若指定类型则已过滤。
+         */
         async loadFromLocal(path, type) {
-            const data = await request("POST", "/comments/local/load", { path, type });
-            return ensureCommentList(data);
+            const data = await request("POST", "/comments/local/load", {
+                body: { path },
+            });
+            const list = ensureCommentList(data);
+            if (!type) {
+                return list;
+            }
+            const normalizedType = normalizeTypeForServer(type);
+            return list.filter((item) => {
+                const itemType = normalizeTypeForServer(
+                    extractTypeValue(item?.type)
+                );
+                return !normalizedType || itemType === normalizedType;
+            });
         },
+        /**
+         * 将注释集合保存到本地 JSON 文件。
+         *
+         * @param {string} path - 目标文件路径。
+         * @param {Record<string, Array<{ id: number | string; content: string }>>} grouped - 按类型分组的注释集合。
+         * @returns {Promise<any>} 后端返回的操作状态对象。
+         */
         async saveToLocal(path, grouped) {
-            const commentsByType = {};
+            const commentList = [];
             Object.entries(grouped || {}).forEach(([key, list]) => {
-                commentsByType[key] = Array.isArray(list)
-                    ? list.map((item) => formatPayload(item, key))
-                    : [];
+                (Array.isArray(list) ? list : []).forEach((item) => {
+                    commentList.push(formatPayload(item, key));
+                });
             });
             return request("POST", "/comments/local/save", {
-                path,
-                commentsByType,
+                body: { path, commentList },
             });
         },
     };
