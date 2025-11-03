@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Fanuc 注释管理控制台</title>
+    <link rel="stylesheet" href="./styles.css" />
+    <script src="https://unpkg.com/vue@3.4.27/dist/vue.global.prod.js" defer></script>
+    <script src="./app.js" type="module" defer></script>
+</head>
+<body>
+    <div id="app">
+        <div class="app-shell" v-cloak>
+            <header class="app-header">
+                <div>
+                    <h1>Fanuc 注释管理控制台</h1>
+                    <p class="subtitle">跨平台、本地运行的可视化管理界面</p>
+                </div>
+                <span v-if="demoMode" class="demo-badge">演示数据</span>
+            </header>
+
+            <!-- 类型选择：指示当前展示、修改状态的按钮列表 -->
+            <section class="type-section card">
+                <div class="section-heading">
+                    <h2>类型选择</h2>
+                    <p class="legend">绿色表示当前面板展示的类型，黄色表示内容已修改但尚未上传。</p>
+                </div>
+                <div class="type-buttons">
+                    <button
+                        v-for="type in typeButtons"
+                        :key="type.value"
+                        :class="typeButtonClass(type.value)"
+                        :title="type.tooltip"
+                        @click="setType(type.value)"
+                    >
+                        {{ type.label }}
+                    </button>
+                </div>
+            </section>
+
+            <section class="content-grid">
+                <!-- 操作面板：集中放置查询、上传与本地文件操作 -->
+                <div class="card operations-card">
+                    <h2>操作面板</h2>
+
+                    <div class="operation-item">
+                        <label for="searchId">按 ID 索引查询</label>
+                        <div class="operation-inputs">
+                            <input id="searchId" type="number" min="0" v-model="search.singleId" placeholder="输入 ID" />
+                            <button class="primary" :disabled="!search.singleId || loading" @click="queryById">查询</button>
+                        </div>
+                    </div>
+
+                    <div class="operation-item">
+                        <label for="searchKeyword">按关键字查询</label>
+                        <div class="operation-inputs">
+                            <input id="searchKeyword" type="text" v-model="search.keyword" placeholder="输入关键字" />
+                            <button class="primary" :disabled="!search.keyword || loading" @click="queryByKeyword">查询</button>
+                        </div>
+                    </div>
+
+                    <div class="operation-item">
+                        <label>按 ID 范围查询</label>
+                        <div class="operation-inputs range">
+                            <input type="number" min="0" v-model="search.rangeStart" placeholder="起始 ID" />
+                            <span class="range-divider">至</span>
+                            <input type="number" min="0" v-model="search.rangeEnd" placeholder="结束 ID" />
+                            <button class="primary" :disabled="!canQueryRange || loading" @click="queryByRange">查询</button>
+                        </div>
+                    </div>
+
+                    <hr />
+
+                    <button class="primary solid" :disabled="loading" @click="queryAll">查询该类型所有数据</button>
+                    <button class="accent solid" :disabled="!hasSelection || loading" @click="uploadSelected">上传当前选中项到机器人</button>
+                    <button class="secondary solid" :disabled="!hasSelection || loading" @click="saveToLocal">将所选项保存成 *.json 文件</button>
+                    <button class="secondary outline" :disabled="loading" @click="loadFromLocal">通过本地 *.json 加载</button>
+                </div>
+
+                <!-- 展示区域：左右两栏显示最新与上一条操作的结果 -->
+                <div class="card display-card">
+                    <div class="display-header">
+                        <h2>展示区域</h2>
+                        <div class="display-actions">
+                            <button class="ghost" :disabled="!totalDisplayedCount" @click="clearDisplay">清除展示</button>
+                            <span class="badge" :class="['state-' + (typeStates[selectedType] || 'idle')]">
+                                {{ stateDescription(selectedType) }}
+                            </span>
+                            <span class="record-count">当前共 {{ totalDisplayedCount }} 条记录，已选中 {{ totalSelectedCount }} 条</span>
+                        </div>
+                    </div>
+
+                    <div class="display-columns">
+                        <div class="display-panel" v-for="(panel, index) in displayedPanels" :key="index">
+                            <div class="panel-header">
+                                <button
+                                    class="panel-title-button"
+                                    :disabled="!panel.type"
+                                    :class="{ active: panel.type && records[panel.type].selected.length && records[panel.type].selected.length === records[panel.type].items.length }"
+                                    @click="togglePanelSelection(panel.type)"
+                                >
+                                    {{ panel.type || '空' }}
+                                </button>
+                                <span class="badge" :class="['panel-state', 'state-' + panelState(panel.type)]">
+                                    {{ panel.type ? stateDescription(panel.type) : '暂无数据' }}
+                                </span>
+                            </div>
+                            <div class="table-wrapper">
+                                <template v-if="panel.type">
+                                    <!-- 当数据刷新或编辑时会附加 flash-once 类，通过 CSS 动画提醒用户。 -->
+                                    <div
+                                        v-if="panel.items.length"
+                                        :class="['table-scroll', { 'flash-once': isFlashing(panel.type) }]"
+                                    >
+                                        <!-- 点击整行即可切换选中状态，取消了显式复选框改用颜色高亮表现。 -->
+                                        <table>
+                                            <thead>
+                                                <tr>
+                                                    <th class="id-col">编号</th>
+                                                    <th>内容</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody>
+                                                <tr
+                                                    v-for="(item, rowIndex) in panel.items"
+                                                    :key="item.id ?? rowIndex"
+                                                    :class="rowClasses(panel.type, item.id)"
+                                                    @click="toggleRowSelection(panel.type, item.id)"
+                                                >
+                                                    <td class="id-col">{{ item.id }}</td>
+                                                    <td>
+                                                        <textarea
+                                                            v-model="item.content"
+                                                            :readonly="!isPanelEditable(panel.type)"
+                                                            @input="handleContentChange(panel.type)"
+                                                            @click.stop
+                                                            @focus="ensureRowSelection(panel.type, item.id)"
+                                                            placeholder="在此处编辑注释内容"
+                                                        ></textarea>
+                                                    </td>
+                                                </tr>
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                    <div v-else class="panel-empty">暂无数据，请使用操作面板加载内容。</div>
+                                </template>
+                                <div v-else class="panel-empty">尚未加载任何类型的数据。</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <footer class="status-bar">
+                <div :class="['status-message', statusLevel]">{{ statusMessage }}</div>
+                <div class="status-extra" v-if="statusTimestamp">更新时间：{{ statusTimestamp }}</div>
+            </footer>
+        </div>
+
+        <div class="loading-overlay" v-if="loading">
+            <div class="spinner"></div>
+            <p>正在处理，请稍候…</p>
+        </div>
+    </div>
+</body>
+</html>
