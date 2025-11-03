@@ -1,7 +1,0 @@
-<?xml version="1.0" ?>
-<jpackage-state version="24.0.1" platform="macOS">
-  <app-version>1.0.0</app-version>
-  <main-launcher>FanucComment</main-launcher>
-  <main-class>com.byd.tools.FanucWebApplication</main-class>
-  <signed>false</signed>
-  <app-store>false</app-store></jpackage-state>
