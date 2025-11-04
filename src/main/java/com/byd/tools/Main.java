@@ -57,7 +57,5 @@ public class Main {
         loadedList.forEach(System.out::println);
 
 
-//        FanucEditor fanucEditor = new FanucEditor();
-//        Application.launch(fanucEditor.getClass());
     }
 }

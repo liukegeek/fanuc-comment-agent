@@ -14,5 +14,5 @@ import java.util.List;
  * Version 1.0
  */
 
-public record CommentUpdateRequest(Comment comment) {
+public record CommentUpdateRequest(CommentPayLoad comment) {
 }

@@ -73,8 +73,8 @@
 
                     <button class="primary solid" :disabled="loading" @click="queryAll">查询该类型所有数据</button>
                     <button class="accent solid" :disabled="!hasSelection || loading" @click="uploadSelected">上传当前选中项到机器人</button>
-                    <button class="secondary solid" :disabled="!hasSelection || loading" @click="saveToLocal">将所选项保存成 *.json 文件</button>
-                    <button class="secondary outline" :disabled="loading" @click="loadFromLocal">通过本地 *.json 加载</button>
+                    <button class="secondary solid" :disabled="!hasSelection || loading" @click="saveToLocal">将所选项保存成 *.json 文件到桌面上</button>
+                    <button class="secondary outline" :disabled="loading" @click="loadFromLocal">通过本地 *.json从加载所选类型的数据</button>
                 </div>
 
                 <!-- 展示区域：左右两栏显示最新与上一条操作的结果 -->

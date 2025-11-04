@@ -24,6 +24,9 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.server.ResponseStatusException;
 
+import java.awt.*;
+import java.io.File;
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.EnumSet;
@@ -145,7 +148,7 @@ public class CommentController {
         if (service.isEmpty()) {
             return ResponseEntity.ok(OperationStatusResponse.ok("更新接口已就绪，待接入实际业务逻辑。"));
         }
-        boolean updated = service.get().updateComment(request.comment());
+        boolean updated = service.get().updateComment(toComment(request.comment()));
         return ResponseEntity.ok(updated
                 ? OperationStatusResponse.ok()
                 : OperationStatusResponse.failed("更新失败"));
@@ -159,7 +162,7 @@ public class CommentController {
             return ResponseEntity.ok(OperationStatusResponse.ok("批量更新接口已就绪，待接入实际业务逻辑。"));
         }
         try {
-            boolean updated = service.get().uploadAllToServer(request.commentList());
+            boolean updated = service.get().uploadAllToServer(request.commentList().stream().map(this::toComment).toList());
             return ResponseEntity.ok(updated
                     ? OperationStatusResponse.ok()
                     : OperationStatusResponse.failed("更新失败"));
@@ -168,10 +171,38 @@ public class CommentController {
         }
     }
 
+    /**
+     * 从本地文件系统加载注释。
+     * 由于浏览器前端沙盒机制，不能直接访问本地文件系统，因此这里只能通过传入 要加载的文件名 + 当前目录 构成完整路径
+     * 统一从桌面目录 保存/加载文件
+     * 比如 加载桌面 AAA文件夹的bbb.json文件，则接受参数request.path() = "AAA/bbb.json"，返回桌面AAA文件夹的bbb.json文件内容
+     *
+     * @param request 包含要加载的文件名的请求体
+     * @return 加载的注释列表
+     */
     @PostMapping("/comments/local/load")
     public ResponseEntity<List<Comment>> loadFromLocal(@Valid @RequestBody LocalLoadRequest request) {
+
+
+        // 尝试构建桌面路径
+        // 在 Windows/macOS/大多数 Linux 上，通常是 "Desktop"
+        String userHomeDir = System.getProperty("user.home");
+        File desktopDir = new File(userHomeDir, "Desktop");
+
+        //检查这个路径是否存在并且确实是一个目录
+        if (!desktopDir.exists() || !desktopDir.isDirectory()) {
+
+            // 标准桌面路径不存在，尝试使用用户主目录作为备用路径。
+            desktopDir = new File(userHomeDir);
+
+            // 对于非标准系统（如某些Linux发行版桌面目录名可能不同），
+            // 这可能需要更复杂的逻辑，或者干脆回退到用户主目录
+        }
+
+        String path = desktopDir.getAbsolutePath() + File.separator + request.path();
+
         try {
-            List<Comment> commentList = commentRepository.loadFromLocalFile(request.path());
+            List<Comment> commentList = commentRepository.loadFromLocalFile(path);
             if (commentList == null) {
                 commentList = Collections.emptyList();
             }
@@ -183,15 +214,34 @@ public class CommentController {
 
     @PostMapping("/comments/local/save")
     public ResponseEntity<OperationStatusResponse> saveToLocal(@Valid @RequestBody LocalSaveRequest request) {
-        if (CollectionUtils.isEmpty(request.commentList())) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "没有可供保存的注释内容");
-        }
-        List<Comment> commentList = request.commentList();
+
+
+        List<Comment> commentList = request.commentList().stream().map(this::toComment).toList();
         if (commentList.isEmpty()) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "没有可供保存的注释内容");
         }
         try {
-            commentRepository.saveToJson(commentList, request.path());
+            if (CollectionUtils.isEmpty(request.commentList())) {
+                throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "没有可供保存的注释内容");
+            }
+            // 尝试构建桌面路径
+            // 在 Windows/macOS/大多数 Linux 上，通常是 "Desktop"
+            String userHomeDir = System.getProperty("user.home");
+            File desktopDir = new File(userHomeDir, "Desktop");
+
+            //检查这个路径是否存在并且确实是一个目录
+            if (!desktopDir.exists() || !desktopDir.isDirectory()) {
+
+                // 标准桌面路径不存在，尝试使用用户主目录作为备用路径。
+                desktopDir = new File(userHomeDir);
+
+                // 对于非标准系统（如某些Linux发行版桌面目录名可能不同），
+                // 这可能需要更复杂的逻辑，或者干脆回退到用户主目录
+            }
+
+            String path = desktopDir.getAbsolutePath() + File.separator + request.path();
+
+            commentRepository.saveToJson(commentList, path);
             return ResponseEntity.ok(OperationStatusResponse.ok());
         } catch (JsonFileIOException | InvalidParaException ex) {
             throw translateException(ex);
@@ -222,6 +272,13 @@ public class CommentController {
             return matching.iterator().next();
         }
         throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "暂不支持的注释类型: " + type);
+    }
+
+    private Comment toComment(CommentPayLoad payload) {
+        return new Comment(
+                Integer.parseInt(payload.id()),
+                payload.content(),
+                resolveCommentType(payload.type()));
     }
 
     private ResponseStatusException translateException(Exception ex) {

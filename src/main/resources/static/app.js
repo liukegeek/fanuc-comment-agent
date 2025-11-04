@@ -830,7 +830,7 @@ createApp({
                 return;
             }
             const defaultPath = `${this.selectedType.toLowerCase()}-comments.json`;
-            const path = window.prompt("请输入要保存的本地文件路径", defaultPath);
+            const path = window.prompt("请输入要保存的文件相对于桌面的路径.\n保存到桌面法那科文件夹中则输入:\n 法那科/MB10R1.json", defaultPath);
             if (!path) {
                 this.setStatus("已取消保存操作。", "info");
                 return;
@@ -842,7 +842,7 @@ createApp({
         },
         async loadFromLocal() {
             if (!this.ensureBridge()) return;
-            const path = window.prompt("请输入本地文件路径", "");
+            const path = window.prompt("请输入要加载的文件相对于桌面的路径.\n加载桌面法那科文件夹中的MB10R1.json文件则输入:\n 法那科/MB10R1.json", "");
             if (!path) {
                 this.setStatus("已取消本地加载。", "info");
                 return;
