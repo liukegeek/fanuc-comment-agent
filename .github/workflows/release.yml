@@ -81,6 +81,7 @@ jobs:
             --main-jar "$ARTIFACT_ID-$MAVEN_VERSION.jar" \
             --runtime-image build/runtime \
             --vendor "BYD Tools" \
+            --icon MyIcon.ico \
             --java-options "-Dserver.port=8910" \
             --dest build/dist
 
