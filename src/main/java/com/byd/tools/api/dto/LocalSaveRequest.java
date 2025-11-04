@@ -8,9 +8,9 @@ import java.util.*;
 /**
  * 保存到本地文件的请求载体，包含目标路径以及按照类型分组的注释集合。
  */
-public record LocalSaveRequest(@NotBlank String path, List<Comment> commentList) {
+public record LocalSaveRequest(@NotBlank String path, List<CommentPayLoad> commentList) {
     public LocalSaveRequest {
-        List<Comment> safeList = commentList == null
+        List<CommentPayLoad> safeList = commentList == null
                 ? Collections.emptyList()
                 : new ArrayList<>(commentList);
         commentList = Collections.unmodifiableList(safeList);

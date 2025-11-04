@@ -8,6 +8,7 @@ import com.google.gson.GsonBuilder;
 import com.google.gson.reflect.TypeToken;
 import org.springframework.stereotype.Component;
 
+import java.io.File;
 import java.io.FileReader;
 import java.io.FileWriter;
 import java.io.IOException;
@@ -41,6 +42,19 @@ public class CommentRepository {
         if (commentList == null || commentList.isEmpty()) {
             throw new InvalidParaException("要保存的长文本列表为空");
         }
+        
+        // 检查并创建父级目录
+        File file = new File(savePath);
+        File parentDir = file.getParentFile();
+        if (parentDir != null && !parentDir.exists()) {
+            // 如果父目录不存在，则创建它
+            boolean created = parentDir.mkdirs();
+            if (!created) {
+                throw new JsonFileIOException("无法创建父级目录: " + parentDir.getAbsolutePath());
+            }
+        }
+
+
 
         // 通过`setPrettyPrinting()` 方法可以自动添加上必要的空格与换行符，生成便于查看与编写的json格式。
         Gson gson = new GsonBuilder().setPrettyPrinting().create();
@@ -49,7 +63,7 @@ public class CommentRepository {
         try (FileWriter fileWriter = new FileWriter(savePath, StandardCharsets.UTF_8)) {
             fileWriter.write(commentsJson);
         } catch (IOException e) {
-            throw new JsonFileIOException("将长文本保存到本地JSON文件:" + savePath + "的过程中发生了错误");
+            throw new JsonFileIOException("将长文本保存到本地JSON文件:" + savePath + "的过程中发生了错误:"+e.getMessage());
         }
     }
 
