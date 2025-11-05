@@ -732,7 +732,7 @@ createApp({
         // ------------------------------------------------------------------
         async queryById() {
             if (!this.ensureBridge()) return;
-            const id = this.search.singleId.trim();
+            const id = this.search.singleId.toString().trim();
             if (!id) {
                 this.setStatus("请输入要查询的 ID。", "error");
                 return;

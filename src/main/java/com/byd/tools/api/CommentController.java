@@ -76,14 +76,14 @@ public class CommentController {
 
     @GetMapping("/comments/queryById")
     public ResponseEntity<List<Comment>> queryById(@RequestParam("type") @NotBlank String type,
-                                                   @RequestParam("id") @NotBlank int id) {
+                                                   @RequestParam("id") @NotBlank String id) {
         CommentType commentType = resolveCommentType(type);
         Optional<CommentService> service = commentService();
         if (service.isEmpty()) {
             return ResponseEntity.ok(Collections.emptyList());
         }
         try {
-            Comment comment = service.get().queryByID(id, commentType);
+            Comment comment = service.get().queryByID(Integer.parseInt(id), commentType);
             if (comment == null) {
                 return ResponseEntity.ok(Collections.emptyList());
             }

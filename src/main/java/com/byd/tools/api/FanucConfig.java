@@ -22,7 +22,7 @@ public class FanucConfig {
     @Bean
     public IConnection fanucConnection() throws Exception {
         return new KarelConnection.Builder()
-                .host("192.168.0.1")       // 改为机器人IP
+                .host("127.0.0.1")       // 改为机器人IP
                 .port(80)
                 .readPath("/karel/ComGet")
                 .writePath("/karel/ComSet")
