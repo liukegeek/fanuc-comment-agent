@@ -49,6 +49,18 @@ body {
     gap: 16px;
 }
 
+.header-title {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.header-actions {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
 .app-header h1 {
     margin: 0;
     font-size: 28px;
@@ -71,6 +83,41 @@ body {
     color: #5b21b6;
     font-weight: 600;
     font-size: 14px;
+}
+
+.icon-button {
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    border: 1px solid var(--border);
+    background: var(--card-bg);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    font-size: 18px;
+    transition: all 0.2s ease;
+    color: #1f2937;
+}
+
+.icon-button:hover,
+.icon-button:focus-visible {
+    background: var(--primary);
+    color: #ffffff;
+    border-color: var(--primary);
+    outline: none;
+}
+
+.sr-only {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border: 0;
 }
 
 .card {
@@ -563,6 +610,67 @@ textarea[readonly] {
 
 .status-extra {
     white-space: nowrap;
+}
+
+.modal-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(15, 23, 42, 0.45);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 24px;
+    z-index: 900;
+}
+
+.modal {
+    background: var(--card-bg);
+    border-radius: 16px;
+    width: min(420px, 100%);
+    padding: 24px;
+    box-shadow: 0 18px 44px rgba(15, 23, 42, 0.25);
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+}
+
+.modal h2 {
+    margin: 0;
+    font-size: 20px;
+    font-weight: 600;
+    color: #111827;
+}
+
+.modal-description {
+    margin: 0;
+    color: #6b7280;
+    font-size: 14px;
+    line-height: 1.6;
+}
+
+.modal input {
+    width: 100%;
+    padding: 12px;
+    border-radius: 10px;
+    border: 1px solid var(--border);
+    font-size: 15px;
+}
+
+.modal input:focus {
+    outline: 2px solid var(--primary);
+    border-color: transparent;
+}
+
+.modal-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 12px;
+}
+
+.modal-error {
+    margin: 0;
+    color: #dc2626;
+    font-size: 13px;
 }
 
 .loading-overlay {

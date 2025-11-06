@@ -5,6 +5,8 @@ import com.byd.tools.exceptions.ConnectFailedException;
 import com.byd.tools.exceptions.InvalidParaException;
 import com.byd.tools.pojo.Comment;
 import com.byd.tools.pojo.CommentType;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -20,6 +22,7 @@ import java.util.List;
  * Version 1.0
  */
 public class CommentService {
+    private static final Logger LOGGER = LogManager.getLogger(CommentService.class);
     private final IConnection connection;
 
     /**
@@ -41,6 +44,7 @@ public class CommentService {
      * @throws InvalidParaException   当输入参数无效时抛出
      */
     public Comment queryByID(int id, CommentType commentType) throws ConnectFailedException, InvalidParaException {
+        LOGGER.debug("查询注释详情: id={}, type={}", id, commentType);
         return connection.readComment(id, commentType);
     }
 
@@ -52,6 +56,7 @@ public class CommentService {
      * @return 包含该关键词的长文本对象列表
      */
     public List<Comment> queryByKeyword(String keyword, CommentType commentType) throws ConnectFailedException, InvalidParaException {
+        LOGGER.debug("按关键字查询注释: keyword={}, type={}", keyword, commentType);
         return connection.readAllComments(commentType).stream()
                 .filter(comment -> comment.getContent().contains(keyword))
                 .toList();
@@ -66,9 +71,15 @@ public class CommentService {
      * @return 指定范围内的长文本对象列表
      */
     public List<Comment> queryByIdRange(int startId, int endId, CommentType commentType) throws ConnectFailedException, InvalidParaException {
+        LOGGER.debug("按范围查询注释: start={}, end={}, type={}", startId, endId, commentType);
         List<Comment> comments = new ArrayList<>();
         for (int i = startId; i <= endId; i++) {
-            comments.add(queryByID(i, commentType));
+            Comment comment = queryByID(i, commentType);
+            if (comment != null) {
+                comments.add(comment);
+            } else {
+                LOGGER.debug("范围查询未找到注释: id={}, type={}", i, commentType);
+            }
         }
         return comments;
     }
@@ -82,6 +93,7 @@ public class CommentService {
      * @throws InvalidParaException   当输入参数无效时抛出
      */
     public List<Comment> queryAllFromServer(CommentType commentType) throws ConnectFailedException, InvalidParaException {
+        LOGGER.debug("查询类型下的全部注释: {}", commentType);
         return connection.readAllComments(commentType);
     }
 
@@ -94,8 +106,15 @@ public class CommentService {
      */
     public boolean updateComment(Comment newComment) {
         try {
-            return connection.writeComment(newComment);
+            boolean updated = connection.writeComment(newComment);
+            if (!updated) {
+                LOGGER.warn("更新注释失败: id={}, type={}", newComment.getId(), newComment.getType());
+            } else {
+                LOGGER.info("已更新注释: id={}, type={}", newComment.getId(), newComment.getType());
+            }
+            return updated;
         } catch (ConnectFailedException | InvalidParaException e) {
+            LOGGER.error("更新注释时发生异常: id={}, type={}", newComment.getId(), newComment.getType(), e);
             return false;
         }
 
@@ -111,24 +130,34 @@ public class CommentService {
      * @throws InvalidParaException   当输入参数无效时抛出
      */
     public boolean uploadAllToServer(List<Comment> comments) throws ConnectFailedException, InvalidParaException {
+        if (comments == null || comments.isEmpty()) {
+            LOGGER.info("没有需要上传的注释记录");
+            return true;
+        }
+        LOGGER.info("准备上传 {} 条注释。", comments.size());
         for (Comment comment : comments) {
-            //每个注释上传前都间隔0.1s,如果失败则重复，最多重复5次
-            int retryCount = 0;
-            while (retryCount < 5) {
-                try {
-                    Thread.sleep(100);
-                } catch (InterruptedException e) {
-                    throw new RuntimeException(e);
+            boolean updated = false;
+            for (int attempt = 1; attempt <= 5 && !updated; attempt++) {
+                if (attempt > 1) {
+                    try {
+                        Thread.sleep(100);
+                    } catch (InterruptedException e) {
+                        Thread.currentThread().interrupt();
+                        throw new ConnectFailedException("上传任务被中断", e);
+                    }
                 }
                 if (updateComment(comment)) {
-                    break;
+                    updated = true;
+                } else if (attempt < 5) {
+                    LOGGER.warn("上传注释失败，将进行第 {} 次重试: id={}, type={}", attempt + 1, comment.getId(), comment.getType());
                 }
-                retryCount++;
             }
-            if (retryCount == 5) {
+            if (!updated) {
+                LOGGER.error("上传注释失败且超过最大重试次数: id={}, type={}", comment.getId(), comment.getType());
                 return false;
             }
         }
+        LOGGER.info("成功上传 {} 条注释。", comments.size());
         return true;
     }
 }

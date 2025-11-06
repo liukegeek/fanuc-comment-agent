@@ -285,10 +285,22 @@ public class CommentController {
 
 
     private Comment toComment(CommentPayLoad payload) {
-        return new Comment(
-                Integer.parseInt(payload.id()),
-                payload.content(),
-                resolveCommentType(payload.type()));
+        if (payload == null) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "注释载荷不能为空");
+        }
+        String idValue = payload.id();
+        if (!StringUtils.hasText(idValue)) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "注释编号不能为空");
+        }
+        int id;
+        try {
+            id = Integer.parseInt(idValue.trim());
+        } catch (NumberFormatException ex) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "注释编号必须为数字: " + idValue, ex);
+        }
+        String content = payload.content() == null ? "" : payload.content();
+        CommentType type = resolveCommentType(payload.type());
+        return new Comment(id, content, type);
     }
 
     private CommentPayLoad toCommentPayload(Comment comment) {

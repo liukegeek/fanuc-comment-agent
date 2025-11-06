@@ -9,7 +9,11 @@ package com.byd.tools.exceptions;
  * Version 1.0   
 */
 public class JsonFileIOException extends Exception {
-  public JsonFileIOException(String message) {
-    super(message);
-  }
+    public JsonFileIOException(String message) {
+        super(message);
+    }
+
+    public JsonFileIOException(String message, Throwable cause) {
+        super(message, cause);
+    }
 }
