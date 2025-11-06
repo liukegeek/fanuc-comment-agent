@@ -2,12 +2,15 @@ package com.byd.tools;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.context.annotation.Configuration;
 
 import java.io.File;
 import java.io.IOException;
+import java.net.InetSocketAddress;
+import java.net.Socket;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -29,9 +32,34 @@ public class FanucWebApplication {
 
     private static final Logger LOGGER = LogManager.getLogger(FanucWebApplication.class);
 
+    @Value("${server.port}")
+    private static int port;//即将运行的端口
+
     public static void main(String[] args) {
-        SpringApplication.run(FanucWebApplication.class, args);
-        LOGGER.info("Fanuc 注释管理控制台已启动，日志目录: {}", System.getProperty("log.dir"));
+        if (!isPortInUse(port)) {
+            SpringApplication.run(FanucWebApplication.class, args);
+            LOGGER.info("Fanuc 注释管理控制台已启动，日志目录: {}", System.getProperty("log.dir"));
+        } else {
+            String url = "http://localhost:" + port;
+            String os = System.getProperty("os.name").toLowerCase();
+            Runtime runtime = Runtime.getRuntime();
+            LOGGER.info("端口 {} 已被占用，无法启动应用后端服务，即将直接打开浏览器访问，直接打开浏览器访问: {}", url);
+            try {
+                if (os.contains("win")) {
+                    // Windows
+                    runtime.exec("rundll32 url.dll,FileProtocolHandler " + url);
+                } else if (os.contains("mac")) {
+                    // macOS
+                    runtime.exec("open " + url);
+                } else if (os.contains("nix") || os.contains("nux")) {
+                    // Linux/Unix
+                    runtime.exec(new String[]{"xdg-open", url});
+                }
+                System.exit(0); // 退出当前实例
+            } catch (IOException e) {
+                LOGGER.error("无法打开浏览器: {}", e.getMessage());
+            }
+        }
     }
 
     private static void configureLoggingDirectory() {
@@ -58,6 +86,16 @@ public class FanucWebApplication {
         } catch (IOException ex) {
             System.err.println("无法创建日志目录 " + logDir + ": " + ex.getMessage());
             System.setProperty("log.dir", logDir.toAbsolutePath().toString());
+        }
+    }
+
+    private static boolean isPortInUse(int port) {
+        try (Socket socket = new Socket()) {
+            // 尝试连接到指定端口
+            socket.connect(new InetSocketAddress("localhost", port), 1000);
+            return true; // 端口已被占用
+        } catch (IOException e) {
+            return true;// 端口未被占用
         }
     }
 }
