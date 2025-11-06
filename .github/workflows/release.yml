@@ -58,30 +58,30 @@ jobs:
         if: matrix.os == 'macos-latest'
         run: |
           "$JAVA_HOME/bin/jpackage" \
-            --name FanucComment \
+            --name FanucCommentTool \
             --app-version "$APP_VERSION" \
             --type app-image \
             --input target \
             --main-jar "$ARTIFACT_ID-$MAVEN_VERSION.jar" \
             --runtime-image build/runtime \
             --vendor "BYD Tools" \
-            --icon MyIcon.icns \
+            --icon icons/macIcon.icns \
             --java-options "-Dserver.port=8910" \
-            --mac-package-identifier com.byd.tools.fanuccomment \
+            --mac-package-identifier com.byd.tools.fanuccommenttool \
             --dest build/dist
 
       - name: Package app image (Windows)
         if: matrix.os == 'windows-latest'
         run: |
           "$JAVA_HOME/bin/jpackage" \
-            --name FanucComment \
+            --name FanucCommentTool \
             --app-version "$APP_VERSION" \
             --type app-image \
             --input target \
             --main-jar "$ARTIFACT_ID-$MAVEN_VERSION.jar" \
             --runtime-image build/runtime \
             --vendor "BYD Tools" \
-            --icon icons/MyIcon.ico \
+            --icon icons/windowsIcon.ico \
             --java-options "-Dserver.port=8910" \
             --dest build/dist
 
@@ -89,21 +89,21 @@ jobs:
         if: matrix.os == 'macos-latest'
         run: |
           mkdir -p build/packages
-          ditto -c -k --sequesterRsrc --keepParent "build/dist/FanucComment.app" "build/packages/FanucComment-macos-${APP_VERSION}.zip"
-
+          ditto -c -k --sequesterRsrc --keepParent "build/dist/FanucCommentTool.app" "build/packages/FanucCommentTool-macos-${APP_VERSION}.zip"
+      
       - name: Archive Windows image
         if: matrix.os == 'windows-latest'
         shell: pwsh
         run: |
           New-Item -ItemType Directory -Path build\packages -Force | Out-Null
-          $archive = "build/packages/FanucComment-windows-$env:APP_VERSION.zip"
+          $archive = "build/packages/FanucCommentTool-windows-$env:APP_VERSION.zip"
           if (Test-Path $archive) { Remove-Item $archive }
-          Compress-Archive -Path build/dist/FanucComment -DestinationPath $archive
+          Compress-Archive -Path build/dist/FanucCommentTool -DestinationPath $archive
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
-          name: FanucComment-${{ matrix.artifact_suffix }}
+          name: FanucCommentTool-${{ matrix.artifact_suffix }}
           path: build/packages/*.zip
           if-no-files-found: error
 
@@ -123,10 +123,10 @@ jobs:
         uses: softprops/action-gh-release@v1
         with:
           tag_name: ${{ github.ref_name }}
-          name: FanucComment ${{ env.APP_VERSION }}
+          name: FanucCommentTool ${{ env.APP_VERSION }}
           draft: false
           prerelease: false
           files: |
-            build/releases/**/FanucComment-*.zip
+            build/releases/**/FanucCommentTool-*.zip
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

@@ -91,7 +91,7 @@ java -jar target/fanuc-comment-agent-*.jar
 4. 将每个平台的压缩包上传到对应的 GitHub Release，供直接下载。
 
 生成的文件：
-- `FanucComment-macos-<版本>.zip`
-- `FanucComment-windows-<版本>.zip`
+- `FanucCommentTool-macos-<版本>.zip`
+- `FanucCommentTool-windows-<版本>.zip`
 
 > 提示：请确保标签版本号与 README 中的说明一致，例如 `v1.0.0`，以保证 `jpackage` 的 `--app-version` 参数合法。
