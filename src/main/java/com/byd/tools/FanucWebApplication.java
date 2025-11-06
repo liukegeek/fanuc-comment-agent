@@ -31,11 +31,12 @@ public class FanucWebApplication {
     }
 
     private static final Logger LOGGER = LogManager.getLogger(FanucWebApplication.class);
-    @Value("${server.port}")
-    private static int port;//即将运行的端口
 
     public static void main(String[] args) {
-        if (!isPortInUse(port)) {
+        int port = System.getProperty("server.port") != null ? Integer.parseInt(System.getProperty("server.port")) : 0;
+
+        // 如果没有从配置文件中获取到"server.port"设定的端口值，则设定port=0。当端口配置为0时，表示使用随机端口。在后续的BrowserAutoLauncher类中会对使用到的随机端口进行获取。
+        if (port == 0 || !isPortInUse(port)) {
             SpringApplication.run(FanucWebApplication.class, args);
             LOGGER.info("Fanuc 注释管理控制台已启动，日志目录: {}", System.getProperty("log.dir"));
         } else {
