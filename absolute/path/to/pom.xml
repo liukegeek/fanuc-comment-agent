@@ -1,0 +1,11 @@
+<plugin>
+    <groupId>org.springframework.boot</groupId>
+    <artifactId>spring-boot-maven-plugin</artifactId>
+    <configuration>
+        <!-- 明确指定主类 -->
+        <mainClass>com.byd.tools.FanucWebApplication</mainClass>
+        
+        <layers enabled="true"/>
+    </configuration>
+    <!-- ... 现有配置 ... -->
+</plugin>

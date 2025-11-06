@@ -1,13 +1,12 @@
 # Fanuc Comment Agent
 
-一个用于集中管理 Fanuc 机器人注释（长文本）的本地化 Web 控制台。后端基于 Spring Boot 提供 REST 接口，前端使用 Vue 3 实现单页应用，以方便工程师查询、修改以及备份机器人控制柜中的注释信息。
+一个用于集中管理 Fanuc 机器人IO注释的本地 Web 控制台。后端基于 Spring Boot 提供 REST 接口，前端使用 Vue 3 实现单页应用，便于实现批量查询、修改以及备份机器人控制柜中的注释信息。
 
 ## ✨ 功能概览
 
 - **实时查询**：按照编号、编号区间或关键字从机器人中查询注释内容。
 - **批量上传**：对本地修改过的注释进行批量上传，自动处理重复尝试与异常提示。
-- **本地备份与恢复**：将选中的注释保存为 JSON 文件，或从已有的 JSON 文件中恢复注释内容。
-- **目标机器人 IP 设置**：通过界面右上角的「插头」图标随时调整目标机器人 IP 地址，适配真实控制柜、局域网机器人以及虚拟机环境。
+- **本地备份与恢复**：将选中的注释保存为 JSON 文件，或从已有的 JSON 文件中加载注释内容。
 - **日志追踪与故障排查**：内置 Log4j2 日志体系，所有关键操作与异常信息都会写入本地日志文件，便于排障。
 
 ## 🚀 快速开始
@@ -33,9 +32,12 @@ mvn clean package
 java -jar target/fanuc-comment-agent-*.jar
 ```
 
-> 首次启动会在用户主目录下创建 `~/.fanuc-comment-agent/logs` 文件夹，并将运行日志写入其中。
+### 直接下载绿色软件包使用
+在 [Release 页面](https://github.com/liuke1995/FanucHelper/releases) 下载最新版本的绿色软件包（`.zip`）。
 
-## 🔌 运行时配置机器人 IP
+> 首次启动会在用户主目录下创建 `~/Desktop/.fanuc-comment-agent/logs` 文件夹，并将运行日志写入其中。
+
+## 🔌 运行时设置要连接目标机器人的 IP
 
 1. 启动应用后，点击界面右上角标题旁的插头图标。
 2. 在弹出的对话框中输入目标机器人 IP 地址（示例：`192.168.0.1` 或 `127.0.0.1`）。
@@ -45,7 +47,7 @@ java -jar target/fanuc-comment-agent-*.jar
 
 ## 🧾 日志与异常处理
 
-- 日志文件存放在：`~/.fanuc-comment-agent/logs/app.log`
+- 日志文件存放在：`~/Desktop/.fanuc-comment-agent/logs/app.log`
 - 控制台与文件日志均使用 Log4j2 输出，涵盖：
   - 连接测试、读写请求及其返回状态
   - 本地文件读写
@@ -93,7 +95,3 @@ java -jar target/fanuc-comment-agent-*.jar
 - `FanucComment-windows-<版本>.zip`
 
 > 提示：请确保标签版本号与 README 中的说明一致，例如 `v1.0.0`，以保证 `jpackage` 的 `--app-version` 参数合法。
-
-## 🤝 贡献
-
-欢迎通过 Issue 或 Pull Request 分享反馈、提交优化建议，共同完善 Fanuc Comment Agent。

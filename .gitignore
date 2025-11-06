@@ -40,4 +40,4 @@ logs
 out
 FanucHelper-runtime
 ${sys:log.dir}
-MyIcon.png
+icons/MyIcon.png
