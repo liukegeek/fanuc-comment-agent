@@ -31,7 +31,6 @@ public class FanucWebApplication {
     }
 
     private static final Logger LOGGER = LogManager.getLogger(FanucWebApplication.class);
-
     @Value("${server.port}")
     private static int port;//即将运行的端口
 
@@ -43,7 +42,7 @@ public class FanucWebApplication {
             String url = "http://localhost:" + port;
             String os = System.getProperty("os.name").toLowerCase();
             Runtime runtime = Runtime.getRuntime();
-            LOGGER.info("端口 {} 已被占用，无法启动应用后端服务，即将直接打开浏览器访问，直接打开浏览器访问: {}", url);
+            LOGGER.info("端口 {} 已被占用，无法启动应用后端服务，即将直接打开浏览器访问，直接打开浏览器访问: {}", port, url);
             try {
                 if (os.contains("win")) {
                     // Windows
