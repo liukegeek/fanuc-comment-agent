@@ -69,7 +69,12 @@ public class BaseWebParser implements KarelWebParser {
             String sComment = URLEncoder.encode(value, charset);
             String sIndx = URLEncoder.encode(String.valueOf(id), charset);
             String sFc = URLEncoder.encode(commentTypeCode, charset);
-            return "?sComment=" + sComment + "&sIndx=" + sIndx + "&sFc=" + sFc;
+            String writePara = "?sComment=" + sComment + "&sIndx=" + sIndx + "&sFc=" + sFc;
+            //早期浏览器，提交表单时会把空格编码成 + ，JAVA中的URLEncoder因此会默认把空格编码成"+"。
+            //而现代URL标准规定，空格应该编码成"%20"，因此这里手动将"+"替换为"%20"。
+            writePara = writePara.replace("+", "%20");
+            return writePara;
+
         } catch (UnsupportedEncodingException e) {
             throw new RuntimeException(e);
         }

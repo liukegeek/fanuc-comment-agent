@@ -13,7 +13,7 @@ import java.net.URISyntaxException;
 import java.util.regex.Pattern;
 
 /**
- * 提供运行时修改机器人连接目标的能力。
+ * 提供运行时修改连接目标的能力。
  */
 @Service
 public class ConnectionSettingsService {

@@ -41,7 +41,11 @@ public class StrRegisterValueWebParser extends BaseWebParser {
              寄存器值修改的参数格式与注释不同，比如 字符串寄存器第10个点存储的值更改为BB 的url链接为:
                 http://192.168.0.1/karel/ComSet?sValue=BB&sIndx=10&sFc=15
              */
-            return "?sValue=" + sValue + "&sIndx=" + sIndx + "&sFc=" + sFc;
+            String writePara = "?sValue=" + sValue + "&sIndx=" + sIndx + "&sFc=" + sFc;
+            //早期浏览器，提交表单时会把空格编码成 + ，JAVA中的URLEncoder因此会默认把空格编码成"+"。
+            //而现代URL标准规定，空格应该编码成"%20"，因此这里手动将"+"替换为"%20"。
+            writePara = writePara.replace("+", "%20");
+            return writePara;
         } catch (UnsupportedEncodingException e) {
             throw new RuntimeException(e);
         }

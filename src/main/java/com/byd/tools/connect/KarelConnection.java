@@ -11,10 +11,7 @@ import org.apache.logging.log4j.Logger;
 
 import java.io.IOException;
 import java.io.InputStream;
-import java.net.HttpURLConnection;
-import java.net.URI;
-import java.net.URISyntaxException;
-import java.net.URL;
+import java.net.*;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -55,7 +52,7 @@ public class KarelConnection implements IConnection {
         KarelWebParser webParser = WebParserFactory.of(commentType);
         String readUrlPara = webParser.generateReadPara(commentType);
         String readUrl = baseUrl + readPath + readUrlPara;
-    
+
         try {
             //该类型长文本无缓存，则先从服务器中请求，然后存入到缓存temp中。之后查询便直接通过缓存中查即可。
             if (cacheValid.get(commentType) == null || cacheValid.get(commentType) == false) {
@@ -91,8 +88,8 @@ public class KarelConnection implements IConnection {
                 // 全部读完则设置为缓存有效。
                 cacheValid.put(commentType, true);
             }
-    
-    
+
+
             //先根据类型，从缓存中找到所有该type的Map集合，然后根据id直接返回对应的comment对象。
             return cache.get(commentType).get(id);
         } catch (IOException e) {
@@ -303,7 +300,7 @@ public class KarelConnection implements IConnection {
         boolean connectOpen = false;
         int responseCode = -1;
         HttpURLConnection httpURLConnection = null;
-    
+
         try {
             httpURLConnection = createConnection(targetUrl);
             responseCode = httpURLConnection.getResponseCode();
