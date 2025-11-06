@@ -16,7 +16,6 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.util.CollectionUtils;
 import org.springframework.util.StringUtils;
 import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -24,10 +23,7 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.server.ResponseStatusException;
 
-import java.awt.*;
 import java.io.File;
-import java.io.IOException;
-import java.util.ArrayList;
 import java.util.Collections;
 import java.util.EnumSet;
 import java.util.List;
@@ -43,7 +39,7 @@ import java.util.Set;
 @RequestMapping("/api")
 public class CommentController {
 
-    private static final Map<String, CommentType> TYPE_MAPPINGS = Map.ofEntries(
+    private static final Map<String, CommentType> TYPE_MAPPINGS_TO_ENUM = Map.ofEntries(
             Map.entry("R_COMMENT", CommentType.NUM_REGISTER_COMMENT),
             Map.entry("R_VALUE", CommentType.NUM_REGISTER_VALUE),
             Map.entry("PR", CommentType.POSITION_REGISTER),
@@ -60,6 +56,24 @@ public class CommentController {
             Map.entry("FLAG", CommentType.FLAG)
     );
 
+    private static final Map<CommentType, String> TYPE_MAPPINGS_TO_STR = Map.ofEntries(
+            Map.entry(CommentType.NUM_REGISTER_COMMENT, "R_COMMENT"),
+            Map.entry(CommentType.NUM_REGISTER_VALUE, "R_VALUE"),
+            Map.entry(CommentType.POSITION_REGISTER, "PR"),
+            Map.entry(CommentType.STRING_REGISTER_COMMENT, "SR_COMMENT"),
+            Map.entry(CommentType.STRING_REGISTER_VALUE, "SR_VALUE"),
+            Map.entry(CommentType.RI, "RI"),
+            Map.entry(CommentType.RO, "RO"),
+            Map.entry(CommentType.DI, "DI"),
+            Map.entry(CommentType.DO, "DO"),
+            Map.entry(CommentType.GI, "GI"),
+            Map.entry(CommentType.GO, "GO"),
+            Map.entry(CommentType.AI, "AI"),
+            Map.entry(CommentType.AO, "AO"),
+            Map.entry(CommentType.FLAG, "FLAG")
+    );
+
+
     private final CommentRepository commentRepository;
     private final ObjectProvider<CommentService> commentServiceProvider;
 
@@ -75,27 +89,27 @@ public class CommentController {
     }
 
     @GetMapping("/comments/queryById")
-    public ResponseEntity<List<Comment>> queryById(@RequestParam("type") @NotBlank String type,
-                                                   @RequestParam("id") @NotBlank int id) {
+    public ResponseEntity<List<CommentPayLoad>> queryById(@RequestParam("type") @NotBlank String type,
+                                                          @RequestParam("id") @NotBlank String id) {
         CommentType commentType = resolveCommentType(type);
         Optional<CommentService> service = commentService();
         if (service.isEmpty()) {
             return ResponseEntity.ok(Collections.emptyList());
         }
         try {
-            Comment comment = service.get().queryByID(id, commentType);
+            Comment comment = service.get().queryByID(Integer.parseInt(id), commentType);
             if (comment == null) {
                 return ResponseEntity.ok(Collections.emptyList());
             }
-            return ResponseEntity.ok(List.of(comment));
+            return ResponseEntity.ok(List.of(toCommentPayload(comment)));
         } catch (ConnectFailedException | InvalidParaException ex) {
             throw translateException(ex);
         }
     }
 
     @GetMapping("/comments/queryByKeyWord")
-    public ResponseEntity<List<Comment>> queryByKeyword(@RequestParam("type") @NotBlank String type,
-                                                        @RequestParam("keyword") @NotBlank String keyword) {
+    public ResponseEntity<List<CommentPayLoad>> queryByKeyword(@RequestParam("type") @NotBlank String type,
+                                                               @RequestParam("keyword") @NotBlank String keyword) {
         CommentType commentType = resolveCommentType(type);
         Optional<CommentService> service = commentService();
         if (service.isEmpty()) {
@@ -103,16 +117,16 @@ public class CommentController {
         }
         try {
             List<Comment> commentList = service.get().queryByKeyword(keyword, commentType);
-            return ResponseEntity.ok(commentList);
+            return ResponseEntity.ok(commentList.stream().map(this::toCommentPayload).toList());
         } catch (ConnectFailedException | InvalidParaException ex) {
             throw translateException(ex);
         }
     }
 
     @GetMapping("/comments/queryByIdRange")
-    public ResponseEntity<List<Comment>> queryByRange(@RequestParam("type") @NotBlank String type,
-                                                      @RequestParam("start") int start,
-                                                      @RequestParam("end") int end) {
+    public ResponseEntity<List<CommentPayLoad>> queryByRange(@RequestParam("type") @NotBlank String type,
+                                                             @RequestParam("start") int start,
+                                                             @RequestParam("end") int end) {
         CommentType commentType = resolveCommentType(type);
         Optional<CommentService> service = commentService();
         if (service.isEmpty()) {
@@ -120,14 +134,14 @@ public class CommentController {
         }
         try {
             List<Comment> commentList = service.get().queryByIdRange(start, end, commentType);
-            return ResponseEntity.ok(commentList);
+            return ResponseEntity.ok(commentList.stream().map(this::toCommentPayload).toList());
         } catch (ConnectFailedException | InvalidParaException ex) {
             throw translateException(ex);
         }
     }
 
     @GetMapping("/comments/queryAll")
-    public ResponseEntity<List<Comment>> queryAll(@RequestParam("type") @NotBlank String type) {
+    public ResponseEntity<List<CommentPayLoad>> queryAll(@RequestParam("type") @NotBlank String type) {
         CommentType commentType = resolveCommentType(type);
         Optional<CommentService> service = commentService();
         if (service.isEmpty()) {
@@ -135,7 +149,7 @@ public class CommentController {
         }
         try {
             List<Comment> commentList = service.get().queryAllFromServer(commentType);
-            return ResponseEntity.ok(commentList);
+            return ResponseEntity.ok(commentList.stream().map(this::toCommentPayload).toList());
         } catch (ConnectFailedException | InvalidParaException ex) {
             throw translateException(ex);
         }
@@ -181,7 +195,7 @@ public class CommentController {
      * @return 加载的注释列表
      */
     @PostMapping("/comments/local/load")
-    public ResponseEntity<List<Comment>> loadFromLocal(@Valid @RequestBody LocalLoadRequest request) {
+    public ResponseEntity<LocalLoadResponse> loadFromLocal(@Valid @RequestBody LocalLoadRequest request) {
 
 
         // 尝试构建桌面路径
@@ -206,7 +220,8 @@ public class CommentController {
             if (commentList == null) {
                 commentList = Collections.emptyList();
             }
-            return ResponseEntity.ok(commentList);
+            LocalLoadResponse response = new LocalLoadResponse(commentList.stream().map(this::toCommentPayload).toList());
+            return ResponseEntity.ok(response);
         } catch (JsonFileIOException ex) {
             throw translateException(ex);
         }
@@ -257,28 +272,30 @@ public class CommentController {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "注释类型不能为空");
         }
         String normalized = type.replace('-', '_').toUpperCase(Locale.ROOT);
-        CommentType commentType = TYPE_MAPPINGS.get(normalized);
+        CommentType commentType = TYPE_MAPPINGS_TO_ENUM.get(normalized);
         if (commentType != null) {
             return commentType;
         }
-        // 兼容服务端自身的枚举命名
-        Set<CommentType> matching = EnumSet.noneOf(CommentType.class);
-        for (CommentType candidate : CommentType.values()) {
-            if (candidate.name().equalsIgnoreCase(normalized)) {
-                matching.add(candidate);
-            }
-        }
-        if (!matching.isEmpty()) {
-            return matching.iterator().next();
-        }
         throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "暂不支持的注释类型: " + type);
     }
+
+    private String resolveCommentType(CommentType type) {
+        return TYPE_MAPPINGS_TO_STR.get(type);
+    }
+
 
     private Comment toComment(CommentPayLoad payload) {
         return new Comment(
                 Integer.parseInt(payload.id()),
                 payload.content(),
                 resolveCommentType(payload.type()));
+    }
+
+    private CommentPayLoad toCommentPayload(Comment comment) {
+        return new CommentPayLoad(
+                String.valueOf(comment.getId()),
+                comment.getContent(),
+                resolveCommentType(comment.getType()));
     }
 
     private ResponseStatusException translateException(Exception ex) {

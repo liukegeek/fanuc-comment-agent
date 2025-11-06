@@ -732,7 +732,7 @@ createApp({
         // ------------------------------------------------------------------
         async queryById() {
             if (!this.ensureBridge()) return;
-            const id = this.search.singleId.trim();
+            const id = this.search.singleId.toString().trim();
             if (!id) {
                 this.setStatus("请输入要查询的 ID。", "error");
                 return;
@@ -852,9 +852,10 @@ createApp({
                     path,
                     this.selectedType
                 );
+                // 修改 items 的获取逻辑，同时兼容两种字段名
                 const items = Array.isArray(response)
                     ? response
-                    : response?.comments || [];
+                    : response?.commentList || response?.comments || [];
                 this.applyLocalRecords(this.selectedType, items);
                 this.setStatus(
                     `已从 ${path} 加载 ${items.length} 条数据。`,
