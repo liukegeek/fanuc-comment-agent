@@ -95,7 +95,7 @@ public class FanucWebApplication {
             socket.connect(new InetSocketAddress("localhost", port), 1000);
             return true; // 端口已被占用
         } catch (IOException e) {
-            return true;// 端口未被占用
+            return false;// 端口未被占用
         }
     }
 }
