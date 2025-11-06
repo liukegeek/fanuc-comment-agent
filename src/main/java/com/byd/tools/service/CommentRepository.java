@@ -6,6 +6,8 @@ import com.byd.tools.pojo.Comment;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.reflect.TypeToken;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 import org.springframework.stereotype.Component;
 
 import java.io.File;
@@ -30,6 +32,7 @@ import java.util.List;
  */
 @Component
 public class CommentRepository {
+    private static final Logger LOGGER = LogManager.getLogger(CommentRepository.class);
 
     /**
      * 保存长文本列表到本地JSON文件, 本质上就是将JAVA对象转换成 Json风格的 字符串， 然后将字符串写入到文件当中。
@@ -42,6 +45,8 @@ public class CommentRepository {
         if (commentList == null || commentList.isEmpty()) {
             throw new InvalidParaException("要保存的长文本列表为空");
         }
+
+        LOGGER.info("准备将 {} 条注释保存到本地文件: {}", commentList.size(), savePath);
         
         // 检查并创建父级目录
         File file = new File(savePath);
@@ -62,8 +67,10 @@ public class CommentRepository {
         // 保存到指定的文件中。 默认文件编码为UTF_8;
         try (FileWriter fileWriter = new FileWriter(savePath, StandardCharsets.UTF_8)) {
             fileWriter.write(commentsJson);
+            LOGGER.info("已成功保存注释到文件: {}", savePath);
         } catch (IOException e) {
-            throw new JsonFileIOException("将长文本保存到本地JSON文件:" + savePath + "的过程中发生了错误:"+e.getMessage());
+            LOGGER.error("写入本地 JSON 文件失败: {}", savePath, e);
+            throw new JsonFileIOException("将长文本保存到本地JSON文件:" + savePath + "的过程中发生了错误:" + e.getMessage(), e);
         }
     }
 
@@ -80,6 +87,7 @@ public class CommentRepository {
         if (commentLists == null || commentLists.length == 0) {
             throw new InvalidParaException("要合并的长文本列表为空");
         }
+        LOGGER.info("准备合并并保存多个注释列表到文件: {}", savePath);
         List<Comment> mergedList = new ArrayList<>();
         for (List<Comment> commentList : commentLists) {
             if (commentList != null && !commentList.isEmpty()) {
@@ -100,12 +108,13 @@ public class CommentRepository {
         Gson gson = new Gson();
         Type type = new TypeToken<List<Comment>>() {
         }.getType();  //定义要 按照什么格式解析 Json文件流。 这里按照 List<Comment> 格式解析 json文件
-        try (
-                FileReader fileReader = new FileReader(readPath)  //获得文件的读取流
-        ) {
-            return gson.fromJson(fileReader, type);   //按照格式解析文件流，并转换成List<Comment>格式返回
+        try (FileReader fileReader = new FileReader(readPath)) {  //获得文件的读取流
+            List<Comment> result = gson.fromJson(fileReader, type);   //按照格式解析文件流，并转换成List<Comment>格式返回
+            LOGGER.info("已从本地文件读取 {} 条注释: {}", result == null ? 0 : result.size(), readPath);
+            return result;
         } catch (IOException e) {
-            throw new JsonFileIOException("从本地JSON文件:" + readPath + "读取长文本的过程中发生了错误");
+            LOGGER.error("从本地 JSON 文件读取失败: {}", readPath, e);
+            throw new JsonFileIOException("从本地JSON文件:" + readPath + "读取长文本的过程中发生了错误", e);
         }
     }
 

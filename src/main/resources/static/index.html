@@ -12,11 +12,22 @@
     <div id="app">
         <div class="app-shell" v-cloak>
             <header class="app-header">
-                <div>
+                <div class="header-title">
                     <h1>Fanuc 注释管理控制台</h1>
                     <p class="subtitle">跨平台、本地运行的可视化管理界面</p>
                 </div>
-                <span v-if="demoMode" class="demo-badge">演示数据</span>
+                <div class="header-actions">
+                    <button
+                        class="icon-button"
+                        type="button"
+                        :title="connectionTooltip"
+                        @click="openConnectionDialog"
+                    >
+                        <span aria-hidden="true">🔌</span>
+                        <span class="sr-only">设置目标机器人 IP</span>
+                    </button>
+                    <span v-if="demoMode" class="demo-badge">演示数据</span>
+                </div>
             </header>
 
             <!-- 类型选择：指示当前展示、修改状态的按钮列表 -->
@@ -160,6 +171,41 @@
         <div class="loading-overlay" v-if="loading">
             <div class="spinner"></div>
             <p>正在处理，请稍候…</p>
+        </div>
+
+        <div
+            v-if="connectionSettings.dialogVisible"
+            class="modal-overlay"
+            @click.self="closeConnectionDialog"
+        >
+            <div class="modal" role="dialog" aria-modal="true" aria-labelledby="connection-dialog-title">
+                <h2 id="connection-dialog-title">设置目标机器人 IP</h2>
+                <p class="modal-description">
+                    当前目标：{{ connectionSettings.host || '未配置' }}。
+                    请输入新的机器人 IP 地址，例如 192.168.0.1。
+                </p>
+                <input
+                    type="text"
+                    v-model="connectionSettings.inputHost"
+                    :disabled="connectionSettings.saving"
+                    placeholder="例如：127.0.0.1"
+                    @keyup.enter="saveConnectionHost"
+                />
+                <p v-if="connectionSettings.error" class="modal-error">{{ connectionSettings.error }}</p>
+                <div class="modal-actions">
+                    <button type="button" class="secondary outline" @click="closeConnectionDialog" :disabled="connectionSettings.saving">
+                        取消
+                    </button>
+                    <button
+                        type="button"
+                        class="primary solid"
+                        :disabled="!connectionSettings.inputHost || connectionSettings.saving"
+                        @click="saveConnectionHost"
+                    >
+                        {{ connectionSettings.saving ? '保存中…' : '保存' }}
+                    </button>
+                </div>
+            </div>
         </div>
     </div>
 </body>

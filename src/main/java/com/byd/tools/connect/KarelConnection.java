@@ -2,15 +2,19 @@ package com.byd.tools.connect;
 
 import com.byd.tools.exceptions.ConnectFailedException;
 import com.byd.tools.exceptions.InvalidParaException;
-
 import com.byd.tools.parse.KarelWebParser;
 import com.byd.tools.parse.WebParserFactory;
 import com.byd.tools.pojo.Comment;
 import com.byd.tools.pojo.CommentType;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 
 import java.io.IOException;
 import java.io.InputStream;
-import java.net.*;
+import java.net.HttpURLConnection;
+import java.net.URI;
+import java.net.URISyntaxException;
+import java.net.URL;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -25,6 +29,8 @@ import java.util.List;
  * Version 1.0
  */
 public class KarelConnection implements IConnection {
+    private static final Logger LOGGER = LogManager.getLogger(KarelConnection.class);
+
     private String host; //与机器人服务程序 建立连接的url
     private String baseUrl; //与机器人服务程序建立连接的 baseUrl
 
@@ -53,20 +59,22 @@ public class KarelConnection implements IConnection {
         try {
             //该类型长文本无缓存，则先从服务器中请求，然后存入到缓存temp中。之后查询便直接通过缓存中查即可。
             if (cacheValid.get(commentType) == null || cacheValid.get(commentType) == false) {
+                LOGGER.debug("Initializing cache for type {} via {}", commentType, readUrl);
                 //测试readUrl的连通性。
                 if (!checkConnect(readUrl)) {
+                    LOGGER.warn("无法连接到读取地址: {}", readUrl);
                     throw new ConnectFailedException("与服务器未建立正确连接,无法获取网址:" + readUrl);
                 }
-    
+
                 //如果该类型元素之前未访问过，则先创建hashMap表放入缓存中。 subsequent将该类型元素依次添加进hashMap中即可。
                 cache.put(commentType, new HashMap<>());
-    
+
                 HttpURLConnection httpURLConnection = createConnection(readUrl);
                 try (InputStream karelInputStream = httpURLConnection.getInputStream()) {
                     List<Comment> commentList = webParser.parseDataFromHtml(karelInputStream, "GBK", readUrl);
                     //未查找到该类型的长文本，异常情况。
                     if (commentList.isEmpty()) {
-                        System.out.println("未能获取到任何长文本信息，请检查查询范围"); //记录，不要报错
+                        LOGGER.warn("未能获取到任何长文本信息，请检查查询范围. type={}, url={}", commentType, readUrl);
                         return null; //未查找到该类型的长文本，返回null
                     }
                     //将该类型的每一个元素都读取出来然后存放在缓存中。
@@ -75,6 +83,7 @@ public class KarelConnection implements IConnection {
                             cache.get(commentType).put(x.getId(), x);
                         }
                     });
+                    LOGGER.debug("已缓存 {} 条 {} 类型的数据", commentList.size(), commentType);
                 } finally {
                     // 确保关闭HTTP连接
                     httpURLConnection.disconnect();
@@ -87,8 +96,8 @@ public class KarelConnection implements IConnection {
             //先根据类型，从缓存中找到所有该type的Map集合，然后根据id直接返回对应的comment对象。
             return cache.get(commentType).get(id);
         } catch (IOException e) {
-            System.out.println("由于查询操作未能正常运行");
-            throw new ConnectFailedException("遭遇故障:" + e + "未能成功建立连接");
+            LOGGER.error("由于查询操作未能正常运行: {}", readUrl, e);
+            throw new ConnectFailedException("遭遇故障:" + e + "未能成功建立连接", e);
         }
     }
 
@@ -139,6 +148,7 @@ public class KarelConnection implements IConnection {
         try {
             //测试用来更改的url连接是否连通
             if (!checkConnect(writeUrl)) {
+                LOGGER.warn("写入前测试连接失败: {}", writeUrl);
                 throw new ConnectFailedException("与服务器未建立正常连接与通信");
             }
 
@@ -147,12 +157,12 @@ public class KarelConnection implements IConnection {
                 int responseCode = httpURLConnection.getResponseCode();
                 httpURLConnection.getInputStream().close(); //获取流并直接关闭，丢弃服务器可能返回的数据实体，释放资源
                 if (200 <= responseCode && responseCode < 300) {
-                    System.out.println("成功发送请求:" + httpURLConnection);
+                    LOGGER.info("成功向 {} 写入注释: id={}, type={}", writeUrl, comment.getId(), comment.getType());
                     //同时销毁旧的缓存
                     cacheValid.put(comment.getType(), false);
                     return true;
                 } else {
-                    System.out.println("请求发送失败");
+                    LOGGER.error("请求发送失败，HTTP 状态码: {}", responseCode);
                     return false;
                 }
             } finally {
@@ -160,8 +170,8 @@ public class KarelConnection implements IConnection {
                 httpURLConnection.disconnect();
             }
         } catch (IOException e) {
-            System.out.println("由于写入操作未能正常运行");
-            throw new ConnectFailedException("遭遇故障:" + e + "未能成功建立连接");
+            LOGGER.error("由于写入操作未能正常运行: {}", writeUrl, e);
+            throw new ConnectFailedException("遭遇故障:" + e + "未能成功建立连接", e);
         }
     }
 
@@ -177,7 +187,7 @@ public class KarelConnection implements IConnection {
         this.readPath = builder.readPath;
         this.writePath = builder.writePath;
         modifyBaseURL(builder.defaultProtocol, host, builder.defaultPort);
-        System.out.println("构建成功:\n" + this);
+        LOGGER.info("KarelConnection 构建成功: {}", this);
     }
 
     /**
@@ -253,6 +263,7 @@ public class KarelConnection implements IConnection {
         URI baseuri = new URI(protocol, null, host, port, null, null, null);
         this.host = host;
         this.baseUrl = baseuri.toString();//拼接成基本的url访问串。
+        LOGGER.info("已更新机器人连接基础地址: {}", baseUrl);
     }
 
 
@@ -275,7 +286,8 @@ public class KarelConnection implements IConnection {
             httpURLConnection.setRequestProperty("Accept-Language", "zh-CN,zh;q=0.9");
             return httpURLConnection;
         } catch (IOException e) {
-            throw new ConnectFailedException("创建URL对象或建立连接时，出现了IO相关异常:「" + e + "」,未能成功与" + urlStr + "建立连接");
+            LOGGER.error("创建URL对象或建立连接时发生异常: {}", urlStr, e);
+            throw new ConnectFailedException("创建URL对象或建立连接时未能成功与" + urlStr + "建立连接", e);
         }
     }
 
@@ -298,23 +310,23 @@ public class KarelConnection implements IConnection {
             httpURLConnection.getInputStream().close(); //只需要状态码就行，丢弃响应体释放连接资源。
             connectOpen = switch (responseCode) {
                 case 200, 201, 202 -> {
-                    System.out.println("测试连接成功:" + targetUrl);
+                    LOGGER.debug("测试连接成功: {}", targetUrl);
                     yield true;
                 }
                 case 404, 403 -> {
-                    System.out.println("测试连接时，服务器未响应导致连接失败,错误代码：" + responseCode);
+                    LOGGER.warn("测试连接失败，服务器未响应: {}, 状态码: {}", targetUrl, responseCode);
                     yield false;
                 }
                 default -> {
-                    System.out.println("测试连接时，未成功连接:" + targetUrl + "错误代码为:" + responseCode);
+                    LOGGER.warn("测试连接未成功: {}, 状态码: {}", targetUrl, responseCode);
                     yield false;
                 }
             };
         } catch (IOException e) {
-            System.out.println("进行连接通信时，出现IO异常：" + e);
+            LOGGER.error("进行连接通信时出现 IO 异常: {}", targetUrl, e);
             connectOpen = false;
         } catch (ConnectFailedException e) {
-            System.out.println("无法创建连接" + e);
+            LOGGER.error("无法创建连接: {}", targetUrl, e);
             connectOpen = false;
         } finally {
             // 确保关闭HTTP连接
@@ -328,6 +340,7 @@ public class KarelConnection implements IConnection {
     public void resetCache() {
         cacheValid.clear();
         cache.clear();
+        LOGGER.debug("已重置本地缓存");
     }
 
 

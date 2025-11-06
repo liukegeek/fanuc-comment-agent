@@ -270,6 +270,12 @@ function createHttpBridge(baseUrl = API_BASE_URL) {
                 body: { path, commentList },
             });
         },
+        async getConnectionSettings() {
+            return request("GET", "/settings/connection");
+        },
+        async updateConnectionHost(host) {
+            return request("POST", "/settings/connection", { body: { host } });
+        },
     };
 }
 
@@ -364,6 +370,18 @@ function createDemoBridge() {
         async health() {
             return delay({ ok: true, demo: true }, 120);
         },
+        async getConnectionSettings() {
+            return delay(
+                { host: "127.0.0.1", baseUrl: "http://127.0.0.1" },
+                120
+            );
+        },
+        async updateConnectionHost(host) {
+            return delay(
+                { host, baseUrl: `http://${host}` },
+                120
+            );
+        },
     };
 }
 
@@ -430,6 +448,14 @@ createApp({
             statusUpdatedAt: null,
             demoMode: false,
             commentApi: null,
+            connectionSettings: {
+                host: "",
+                baseUrl: "",
+                dialogVisible: false,
+                inputHost: "",
+                saving: false,
+                error: "",
+            },
         };
     },
     computed: {
@@ -470,6 +496,13 @@ createApp({
         },
         hasSelection() {
             return this.totalSelectedCount > 0;
+        },
+        connectionTooltip() {
+            const host = this.connectionSettings.host;
+            if (host) {
+                return `当前连接的机器人 IP：${host}`;
+            }
+            return "设置目标机器人 IP";
         },
     },
     created() {
@@ -529,17 +562,24 @@ createApp({
         collectSelectedPayloads() {
             const payload = {};
             let total = 0;
+            let missing = 0;
             Object.entries(this.records).forEach(([type, record]) => {
                 if (!record.selected.length) return;
                 const selectedItems = record.selected
                     .map((key) => record.items.find((item) => String(item.id) === key))
                     .filter(Boolean);
                 if (selectedItems.length) {
-                    payload[type] = this.cloneItems(selectedItems);
-                    total += selectedItems.length;
+                    const validItems = selectedItems.filter((item) =>
+                        item.id !== null && item.id !== undefined && item.id !== ""
+                    );
+                    missing += selectedItems.length - validItems.length;
+                    if (validItems.length) {
+                        payload[type] = this.cloneItems(validItems);
+                        total += validItems.length;
+                    }
                 }
             });
-            return { payload, total };
+            return { payload, total, missing };
         },
         normalizeItems(items) {
             if (!items) return [];
@@ -728,6 +768,71 @@ createApp({
             this.setStatus("已清空展示区域内容。", "info");
         },
         // ------------------------------------------------------------------
+        // 机器人连接配置
+        // ------------------------------------------------------------------
+        async refreshConnectionSettings() {
+            if (!this.commentApi || typeof this.commentApi.getConnectionSettings !== "function") {
+                return;
+            }
+            try {
+                const settings = await this.commentApi.getConnectionSettings();
+                if (settings) {
+                    this.connectionSettings.host = settings.host || "";
+                    this.connectionSettings.baseUrl = settings.baseUrl || "";
+                }
+            } catch (error) {
+                console.warn("获取连接配置失败", error);
+                if (!this.demoMode) {
+                    this.setStatus(
+                        error?.message ?? "获取机器人连接配置失败，请检查服务日志。",
+                        "error"
+                    );
+                }
+            }
+        },
+        openConnectionDialog() {
+            this.connectionSettings.dialogVisible = true;
+            this.connectionSettings.inputHost = this.connectionSettings.host || "";
+            this.connectionSettings.error = "";
+        },
+        closeConnectionDialog() {
+            if (this.connectionSettings.saving) {
+                return;
+            }
+            this.connectionSettings.dialogVisible = false;
+            this.connectionSettings.error = "";
+        },
+        async saveConnectionHost() {
+            if (!this.ensureBridge() ||
+                typeof this.commentApi.updateConnectionHost !== "function") {
+                this.setStatus("当前环境不支持修改机器人 IP。", "error");
+                return;
+            }
+            const target = (this.connectionSettings.inputHost || "").trim();
+            if (!target) {
+                this.connectionSettings.error = "请输入有效的 IP 地址";
+                return;
+            }
+            this.connectionSettings.saving = true;
+            this.connectionSettings.error = "";
+            try {
+                const response = await this.commentApi.updateConnectionHost(target);
+                this.connectionSettings.host = response?.host || target;
+                this.connectionSettings.baseUrl = response?.baseUrl || "";
+                this.connectionSettings.dialogVisible = false;
+                this.setStatus(
+                    `已将目标机器人 IP 更新为 ${this.connectionSettings.host}。`,
+                    "success"
+                );
+            } catch (error) {
+                console.error(error);
+                this.connectionSettings.error = error?.message ?? "保存失败，请稍后重试。";
+                this.setStatus(this.connectionSettings.error, "error");
+            } finally {
+                this.connectionSettings.saving = false;
+            }
+        },
+        // ------------------------------------------------------------------
         // 查询相关操作
         // ------------------------------------------------------------------
         async queryById() {
@@ -792,9 +897,16 @@ createApp({
         // ------------------------------------------------------------------
         async uploadSelected() {
             if (!this.ensureBridge()) return;
-            const { payload, total } = this.collectSelectedPayloads();
+            const { payload, total, missing } = this.collectSelectedPayloads();
             if (!total) {
                 this.setStatus("请至少勾选一条需要上传的记录。", "error");
+                return;
+            }
+            if (missing) {
+                this.setStatus(
+                    `存在 ${missing} 条记录缺少编号，无法上传，请完善编号后重试。`,
+                    "error"
+                );
                 return;
             }
             await this.runAsync(async () => {
@@ -824,9 +936,16 @@ createApp({
         },
         async saveToLocal() {
             if (!this.ensureBridge()) return;
-            const { payload, total } = this.collectSelectedPayloads();
+            const { payload, total, missing } = this.collectSelectedPayloads();
             if (!total) {
                 this.setStatus("请至少勾选一条需要保存的记录。", "error");
+                return;
+            }
+            if (missing) {
+                this.setStatus(
+                    `存在 ${missing} 条记录缺少编号，无法保存，请完善编号后重试。`,
+                    "error"
+                );
                 return;
             }
             const defaultPath = `${this.selectedType.toLowerCase()}-comments.json`;
@@ -880,6 +999,12 @@ createApp({
                 if (window.CommentUIBridge) {
                     this.commentApi = window.CommentUIBridge;
                     this.demoMode = !!this.commentApi.__isDemo;
+                    if (typeof this.commentApi.getConnectionSettings === "function") {
+                        await this.refreshConnectionSettings();
+                    } else if (this.demoMode) {
+                        this.connectionSettings.host = "127.0.0.1";
+                        this.connectionSettings.baseUrl = "http://127.0.0.1";
+                    }
                     if (this.demoMode) {
                         this.setStatus(
                             "当前展示为示例数据，可随时替换为实际接口。",
@@ -896,10 +1021,13 @@ createApp({
                 this.commentApi = api;
                 this.demoMode = false;
                 this.setStatus("已连接后端服务，可开始操作。", "success");
+                await this.refreshConnectionSettings();
             } catch (error) {
                 console.warn("后端接口不可用，使用演示数据。", error);
                 this.commentApi = createDemoBridge();
                 this.demoMode = true;
+                this.connectionSettings.host = "127.0.0.1";
+                this.connectionSettings.baseUrl = "http://127.0.0.1";
                 this.setStatus(
                     "当前展示为示例数据，可随时替换为实际接口。",
                     "info"

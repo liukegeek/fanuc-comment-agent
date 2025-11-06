@@ -12,4 +12,8 @@ public class InvalidParaException extends Exception {
     public InvalidParaException(String message) {
         super(message);
     }
+
+    public InvalidParaException(String message, Throwable cause) {
+        super(message, cause);
+    }
 }
